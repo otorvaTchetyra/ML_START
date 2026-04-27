@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Royal\\Client\\Client\\Client.csproj": {}
+    "C:\\Users\\Royal\\team-4-new\\Client\\Client\\Client.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Royal\\Client\\Client\\Client.csproj": {
+    "C:\\Users\\Royal\\team-4-new\\Client\\Client\\Client.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Royal\\Client\\Client\\Client.csproj",
+        "projectUniqueName": "C:\\Users\\Royal\\team-4-new\\Client\\Client\\Client.csproj",
         "projectName": "Client",
-        "projectPath": "C:\\Users\\Royal\\Client\\Client\\Client.csproj",
+        "projectPath": "C:\\Users\\Royal\\team-4-new\\Client\\Client\\Client.csproj",
         "packagesPath": "C:\\Users\\Royal\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Royal\\Client\\Client\\obj\\",
+        "outputPath": "C:\\Users\\Royal\\team-4-new\\Client\\Client\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -73,6 +73,20 @@
             "CommunityToolkit.Mvvm": {
               "target": "Package",
               "version": "[8.4.1, )"
+            },
+            "Microsoft.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[8.0.26, )"
+            },
+            "Microsoft.EntityFrameworkCore.Tools": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[8.0.26, )"
+            },
+            "Pomelo.EntityFrameworkCore.MySql": {
+              "target": "Package",
+              "version": "[8.0.3, )"
             }
           },
           "imports": [
