@@ -1,0 +1,7 @@
+C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\Client.csproj.AssemblyReference.cache
+C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\Avalonia\Resources.Inputs.cache
+C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\Avalonia\resources
+C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\Client.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\Client.AssemblyInfoInputs.cache
+C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\Client.AssemblyInfo.cs
+C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\Client.csproj.CoreCompileInputs.cache
