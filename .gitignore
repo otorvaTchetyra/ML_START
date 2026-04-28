@@ -9,3 +9,36 @@ build/
 *.docx
 server/weights/
 .vs/
+# .NET и Avalonia
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.pdb
+*.dll
+*.exe
+
+# Visual Studio
+.vs/
+*.sln.ide
+*.sln.docstates
+
+# Rider
+.idea/
+
+# Avalonia specific
+**/Avalonia/**.cache
+**/Avalonia/**.tmp
+**/Avalonia/**.inputscache
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
