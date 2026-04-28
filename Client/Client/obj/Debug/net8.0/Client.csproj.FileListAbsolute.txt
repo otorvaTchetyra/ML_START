@@ -174,3 +174,4 @@ C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\refint\Client.dll
 C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\Client.pdb
 C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\Client.genruntimeconfig.cache
 C:\Users\Royal\team-4-new\Client\Client\obj\Debug\net8.0\ref\Client.dll
+C:\Users\Royal\team-4-new\Client\Client\bin\Debug\net8.0\appsettings.json
