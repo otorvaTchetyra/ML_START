@@ -1,21 +1,22 @@
 import asyncio
 import logging
+import shutil
 import tempfile
 from datetime import datetime, time as dtime
 from pathlib import Path
 from time import monotonic
 
 import cv2
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from api.auth import get_current_user
 from api.settings_api import get_current_settings
-from database import AppLog, FeedingEvent, User, get_db
+from database import AppLog, FeedingEvent, SessionLocal, User, get_db
 from models.counter import GranuleCounter
 from models.detector import GranuleDetector
-from schemas.schemas import BBox, FrameAnalysisResponse
+from schemas.schemas import BBox, FrameAnalysisResponse, StreamStartRequest
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/stream", tags=["stream"])
@@ -55,62 +56,92 @@ def _is_in_schedule(schedule: list[dict]) -> bool:
     return False
 
 
-def _log_error(db: Session, message: str) -> None:
-    db.add(AppLog(level="ERROR", message=message))
-    db.commit()
+def _log_error(message: str) -> None:
+    db = SessionLocal()
+    try:
+        db.add(AppLog(level="ERROR", message=message))
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
 
 
-async def _process_video_stream(video_path: str, db: Session, settings: dict):
+def _save_event(granule_count: int, intensity_per_sec: float, intensity_per_min: float,
+                threshold_exceeded: bool, out_of_schedule: bool) -> None:
+    db = SessionLocal()
+    try:
+        db.add(FeedingEvent(
+            granule_count=granule_count,
+            intensity_per_sec=intensity_per_sec,
+            intensity_per_min=intensity_per_min,
+            threshold_exceeded=threshold_exceeded,
+            is_out_of_schedule=out_of_schedule,
+        ))
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        _log_error(f"Ошибка записи события: {exc}")
+    finally:
+        db.close()
+
+
+def _open_capture(source: str) -> cv2.VideoCapture:
+    if source.isdigit():
+        return cv2.VideoCapture(int(source))
+    return cv2.VideoCapture(source)
+
+
+async def _process_video_stream(source: str, app_settings: dict, cleanup_path: str | None = None):
     global _is_running
 
     detector = get_detector()
     counter = get_counter()
     counter.reset()
 
-    threshold: int = settings.get("granule_threshold", 50)
-    schedule: list[dict] = settings.get("feeding_schedule", [])
+    threshold: int = app_settings.get("granule_threshold", 50)
+    schedule: list[dict] = app_settings.get("feeding_schedule", [])
 
-    cap = cv2.VideoCapture(video_path)
+    cap = _open_capture(source)
     if not cap.isOpened():
-        _log_error(db, f"Не удалось открыть видео: {video_path}")
-        raise HTTPException(status_code=400, detail="Не удалось открыть видеофайл")
+        _is_running = False
+        if cleanup_path:
+            Path(cleanup_path).unlink(missing_ok=True)
+        _log_error(f"Не удалось открыть источник: {source}")
+        raise HTTPException(status_code=400, detail="Не удалось открыть источник видео")
 
     frame_index = 0
-    _is_running = True
-
     try:
-        while _is_running and cap.isOpened():
-            ret, frame = cap.read()
+        while _is_running:
+            try:
+                ret, frame = cap.read()
+            except Exception as exc:
+                _log_error(f"Ошибка чтения кадра {frame_index}: {exc}")
+                await asyncio.sleep(0.05)
+                continue
             if not ret:
                 break
 
             ts = monotonic()
             try:
                 detections = detector.detect(frame)
+                result = counter.process_frame(detections, timestamp=ts)
             except Exception as exc:
-                _log_error(db, f"Ошибка детекции на кадре {frame_index}: {exc}")
+                _log_error(f"Ошибка обработки кадра {frame_index}: {exc}")
                 frame_index += 1
                 continue
-
-            result = counter.process_frame(detections, timestamp=ts)
 
             threshold_exceeded = result.granule_count > threshold
             out_of_schedule = not _is_in_schedule(schedule) and result.granule_count > 0
 
             if threshold_exceeded or out_of_schedule:
-                event = FeedingEvent(
-                    granule_count=result.granule_count,
-                    intensity_per_sec=result.intensity_per_sec,
-                    intensity_per_min=result.intensity_per_min,
-                    threshold_exceeded=threshold_exceeded,
-                    is_out_of_schedule=out_of_schedule,
+                _save_event(
+                    result.granule_count,
+                    result.intensity_per_sec,
+                    result.intensity_per_min,
+                    threshold_exceeded,
+                    out_of_schedule,
                 )
-                db.add(event)
-                try:
-                    db.commit()
-                except Exception as exc:
-                    db.rollback()
-                    _log_error(db, f"Ошибка записи события: {exc}")
 
             payload = FrameAnalysisResponse(
                 frame_index=frame_index,
@@ -128,13 +159,14 @@ async def _process_video_stream(video_path: str, db: Session, settings: dict):
 
             yield payload.model_dump_json() + "\n"
             frame_index += 1
-
             await asyncio.sleep(0)
 
     finally:
         cap.release()
+        if cleanup_path:
+            Path(cleanup_path).unlink(missing_ok=True)
         _is_running = False
-        logger.info("Обработка видео завершена. Кадров: %d, гранул: %d", frame_index, counter.total_granules)
+        logger.info("Обработка завершена. Кадров: %d, гранул: %d", frame_index, counter.total_granules)
 
 
 @router.post("/upload")
@@ -143,18 +175,42 @@ async def upload_and_analyse(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    suffix = Path(file.filename).suffix.lower()
+    global _is_running
+    suffix = Path(file.filename or "").suffix.lower()
     if suffix not in (".mp4", ".avi"):
         raise HTTPException(status_code=400, detail="Поддерживаются только форматы MP4 и AVI")
 
+    if _is_running:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Анализ уже выполняется")
+
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(await file.read())
+        shutil.copyfileobj(file.file, tmp)
         tmp_path = tmp.name
 
     app_settings = get_current_settings(db)
+    _is_running = True
 
     return StreamingResponse(
-        _process_video_stream(tmp_path, db, app_settings),
+        _process_video_stream(tmp_path, app_settings, cleanup_path=tmp_path),
+        media_type="application/x-ndjson",
+    )
+
+
+@router.post("/start")
+async def start_from_source(
+    data: StreamStartRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    global _is_running
+    if _is_running:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Анализ уже выполняется")
+
+    app_settings = get_current_settings(db)
+    _is_running = True
+
+    return StreamingResponse(
+        _process_video_stream(data.source, app_settings),
         media_type="application/x-ndjson",
     )
 

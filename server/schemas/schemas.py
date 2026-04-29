@@ -68,6 +68,13 @@ class EventCommentUpdate(BaseModel):
 
 # ── Statistics ────────────────────────────────────────────────────────────────
 
+class IntensityBucket(BaseModel):
+    start: datetime
+    end: datetime
+    total_granules: int
+    average_intensity_per_sec: float
+    event_count: int
+
 class StatsResponse(BaseModel):
     period_start: datetime
     period_end: datetime
@@ -75,7 +82,14 @@ class StatsResponse(BaseModel):
     average_intensity_per_sec: float
     average_intensity_per_min: float
     event_count: int
-    intensity_timeline: list[dict]  # [{timestamp, intensity_per_sec}]
+    intensity_timeline: list[dict]
+    intensity_buckets: list[IntensityBucket] = []
+
+
+# ── Stream ────────────────────────────────────────────────────────────────────
+
+class StreamStartRequest(BaseModel):
+    source: str
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────
