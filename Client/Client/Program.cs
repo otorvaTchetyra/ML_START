@@ -1,5 +1,6 @@
 ﻿using System;
 using Avalonia;
+using ReactiveUI.Avalonia;
 
 namespace Client
 {
@@ -20,6 +21,8 @@ namespace Client
                 .WithDeveloperTools()
 #endif
                 .WithInterFont()
-                .LogToTrace();
+                .LogToTrace()
+                .UseReactiveUI(builder => { });
+
     }
 }

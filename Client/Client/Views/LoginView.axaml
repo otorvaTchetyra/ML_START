@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Client.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Client.LoginView"
+             x:DataType="vm:LoginViewModel">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        
+        <!-- Заголовок -->
+        <TextBlock Grid.Row="0" 
+                   Text="Авторизация"
+                   FontSize="20"
+                   FontWeight="Bold"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,20"/>
+        
+        <!-- Поля ввода -->
+        <StackPanel Grid.Row="1" Spacing="12">
+            
+            <!-- Email -->
+            <TextBox Watermark="Email" 
+                     Text="{Binding Email}"
+                     Margin="0,0,0,4"/>
+            
+            <!-- Пароль -->
+            <TextBox Watermark="Пароль"
+                     Text="{Binding Password}"
+                     PasswordChar="●"
+                     Margin="0,0,0,12"/>
+            
+            <!-- Ошибка -->
+            <TextBlock Text="{Binding ErrorMessage}"
+                       Foreground="Red"
+                       FontSize="12"
+                       IsVisible="{Binding !IsLoading}"
+                       TextWrapping="Wrap"/>
+            
+            <!-- Кнопка входа -->
+            <Button Content="Войти"
+                    Command="{Binding LoginCommand}"
+                    IsEnabled="{Binding !IsLoading}"
+                    HorizontalAlignment="Stretch"
+                    Padding="10"/>
+        </StackPanel>
+        
+        <!-- Ссылка на регистрацию -->
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Spacing="5"
+                    Margin="0,15,0,0">
+            <TextBlock Text="Нет аккаунта?" Foreground="Gray"/>
+            <Button Content="Зарегистрироваться"
+                    Command="{Binding GoToRegisterCommand}"
+                    Classes="link"
+                    Padding="0"/>
+        </StackPanel>
+        
+    </Grid>
+</UserControl>

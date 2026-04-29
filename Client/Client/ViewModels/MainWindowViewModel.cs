@@ -63,49 +63,34 @@ namespace Client.ViewModels
         public MainWindowViewModel()
         {
             OpenVideoCommand = ReactiveCommand.CreateFromTask(OpenVideoAsync);
-            try
-            {
-                using var db = new AppDbContext();
-                var canConnect = db.Database.CanConnect();
-                Greeting = canConnect ? "БД подключена!" : "Ошибка подключения";
-            }
-            catch (Exception ex)
-            {
-                Greeting = $"Ошибка: {ex.Message}";
-            }
+            
         }
         private async Task OpenVideoAsync()
         {
-            await Dispatcher.UIThread.InvokeAsync(async () =>
+            
+            var topLevel = TopLevel.GetTopLevel(App.MainWindow);
+            if (topLevel == null) return;
+
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                var topLevel = TopLevel.GetTopLevel(App.MainWindow);
-                if (topLevel == null) return;
-
-                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                Title = "Выберите видеофайл",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
                 {
-                    Title = "Выберите видеофайл",
-                    AllowMultiple = false,
-                    FileTypeFilter = new[]
+                    new FilePickerFileType("Видеофайлы")
                     {
-                        new FilePickerFileType("Видеофайлы")
-                        {
-                            Patterns = new[] { "*.mp4", "*.avi", "*.mkv", "*.mov", "*.wmv", "*.flv", "*.webm", "*.m4v" }
-                        },
-                        new FilePickerFileType("Все файлы")
-                        {
-                            Patterns = new[] { "*.*" }
-                        }
+                        Patterns = new[] { "*.mp4", "*.avi", "*.mkv", "*.mov", "*.wmv", "*.flv", "*.webm", "*.m4v" }
                     }
-                });
-
-                if (files.Count > 0)
-                {
-                    var selectedFile = files[0].Path.LocalPath;
-                    VideoPath = selectedFile;
-                    //VideoSource = new UriSource($"file:///{selectedFile.Replace('\\', '/')}");
-                    StatusText = $"Загружено видео: {System.IO.Path.GetFileName(selectedFile)}";
                 }
             });
+
+            if (files.Count > 0)
+            {
+                var selectedFile = files[0].Path.LocalPath;
+                VideoPath = selectedFile;
+                //VideoSource = new UriSource($"file:///{selectedFile.Replace('\\', '/')}");
+                StatusText = $"Загружено видео: {System.IO.Path.GetFileName(selectedFile)}";
+            }
         }
         public void AddDetection(string className, float confidence, TimeSpan timestamp)
         {
