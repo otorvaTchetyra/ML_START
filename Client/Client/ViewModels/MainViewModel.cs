@@ -1,24 +1,97 @@
 ﻿using Avalonia.Controls;
-using Avalonia.Platform;
-using Avalonia.Platform.Storage;
+using Client.Models;
 using Client.Services;
 using ReactiveUI;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using System.Reactive;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Client.ViewModels
 {
-    public class MainViewModel: ViewModelBase, IRoutableViewModel
+    public class MainViewModel : ViewModelBase, IRoutableViewModel
     {
         private bool IsInitialized;
-
         public string? UrlPathSegment => "main";
         public IScreen HostScreen { get; }
+
+        private readonly AuthService _authService;
+        private readonly NavigationService _navigationService;
+        private readonly EventsService _eventsService;
+        private readonly StreamService _streamService;
+
+        private string _statusText = "Готов к работе";
+        private string _serverStatus = "Подключение...";
+        private string _serverStatusColor = "Gray";
+        private string _videoPath = string.Empty;
+        private string _commentText = string.Empty;
+        private FeedingEvent? _selectedEvent;
+        private ObservableCollection<FeedingEvent> _events = new();
+
+        public string StatusText
+        {
+            get => _statusText;
+            set => this.RaiseAndSetIfChanged(ref _statusText, value);
+        }
+
+        public string ServerStatus
+        {
+            get => _serverStatus;
+            set => this.RaiseAndSetIfChanged(ref _serverStatus, value);
+        }
+
+        public string ServerStatusColor
+        {
+            get => _serverStatusColor;
+            set => this.RaiseAndSetIfChanged(ref _serverStatusColor, value);
+        }
+
+        public string VideoPath
+        {
+            get => _videoPath;
+            set => this.RaiseAndSetIfChanged(ref _videoPath, value);
+        }
+
+        public string CommentText
+        {
+            get => _commentText;
+            set => this.RaiseAndSetIfChanged(ref _commentText, value);
+        }
+
+        public FeedingEvent? SelectedEvent
+        {
+            get => _selectedEvent;
+            set => this.RaiseAndSetIfChanged(ref _selectedEvent, value);
+        }
+
+        public ObservableCollection<FeedingEvent> Events
+        {
+            get => _events;
+            set => this.RaiseAndSetIfChanged(ref _events, value);
+        }
+
+        public ReactiveCommand<Unit, Unit> OpenVideoCommand { get; }
+        public ReactiveCommand<Unit, Unit> GoToSettingsCommand { get; }
+        public ReactiveCommand<Unit, Unit> StopStreamCommand { get; }
+        public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
+        public ReactiveCommand<Unit, Unit> AddCommentCommand { get; }
+
+        public MainViewModel(IScreen screen, AuthService authService,
+            NavigationService navigationService, EventsService eventsService,
+            StreamService streamService)
+        {
+            HostScreen = screen;
+            _authService = authService;
+            _navigationService = navigationService;
+            _eventsService = eventsService;
+            _streamService = streamService;
+
+            OpenVideoCommand = ReactiveCommand.CreateFromTask(OpenVideoAsync);
+            GoToSettingsCommand = ReactiveCommand.CreateFromTask(GoToSettingsAsync);
+            StopStreamCommand = ReactiveCommand.CreateFromTask(StopStreamAsync);
+            RefreshCommand = ReactiveCommand.CreateFromTask(LoadData);
+            AddCommentCommand = ReactiveCommand.CreateFromTask(AddCommentAsync);
+        }
 
         public async Task InitializeAsync()
         {
@@ -31,115 +104,94 @@ namespace Client.ViewModels
 
         private async Task LoadData()
         {
-        }
-        private readonly AuthService _authService;
-        private readonly NavigationService _navigationService;
+            try
+            {
+                StatusText = "Загрузка данных...";
 
-        private string _videoPath;
-        //private MediaSource _videoSource;
-        private double _volume = 0.8;
-        private bool _autoPlay = true;
-        private string _statusText = "Готов к работе";
-        private ObservableCollection<int> _detections = new();
-        private int _selectedDetection;
-        public string VideoPath
-        {
-            get => _videoPath;
-            set => this.RaiseAndSetIfChanged(ref _videoPath, value);
-        }
+                // Загружаем события
+                var events = await _eventsService.GetEventsAsync();
+                Events.Clear();
+                if (events != null)
+                    foreach (var e in events)
+                        Events.Add(e);
 
-        public double Volume
-        {
-            get => _volume;
-            set => this.RaiseAndSetIfChanged(ref _volume, value);
-        }
+                // Проверяем статус сервера
+                var status = await _streamService.GetStatusAsync();
+                if (status != null)
+                {
+                    ServerStatus = "Сервер: онлайн";
+                    ServerStatusColor = "Green";
+                }
 
-        public bool AutoPlay
-        {
-            get => _autoPlay;
-            set => this.RaiseAndSetIfChanged(ref _autoPlay, value);
-        }
-
-        public string StatusText
-        {
-            get => _statusText;
-            set => this.RaiseAndSetIfChanged(ref _statusText, value);
+                StatusText = $"Загружено событий: {Events.Count}";
+            }
+            catch
+            {
+                ServerStatus = "Сервер: недоступен";
+                ServerStatusColor = "Red";
+                StatusText = "Ошибка загрузки данных";
+            }
         }
 
-        public ObservableCollection<int> Detections
+        private async Task AddCommentAsync()
         {
-            get => _detections;
-            set => this.RaiseAndSetIfChanged(ref _detections, value);
+            if (SelectedEvent == null || string.IsNullOrWhiteSpace(CommentText))
+                return;
+
+            try
+            {
+                await _eventsService.AddCommentAsync(SelectedEvent.Id, CommentText);
+                CommentText = string.Empty;
+                await LoadData();
+            }
+            catch
+            {
+                StatusText = "Ошибка при добавлении комментария";
+            }
         }
 
-        public int SelectedDetection
+        private async Task StopStreamAsync()
         {
-            get => _selectedDetection;
-            set => this.RaiseAndSetIfChanged(ref _selectedDetection, value);
-        }
-        public ReactiveCommand<Unit, Unit> OpenVideoCommand { get; }
-
-        public ReactiveCommand<Unit, Unit> GoToSettingsCommand { get; }
-
-        public MainViewModel(IScreen screen, AuthService authService, NavigationService navigationService)
-        {
-            _authService = authService;
-            _navigationService = navigationService;
-            HostScreen = screen;
-
-            OpenVideoCommand = ReactiveCommand.CreateFromTask(OpenVideoAsync);
-            GoToSettingsCommand = ReactiveCommand.CreateFromTask(GoToSettingsAsync);
+            try
+            {
+                await _streamService.StopAsync();
+                StatusText = "Анализ остановлен";
+            }
+            catch
+            {
+                StatusText = "Ошибка остановки анализа";
+            }
         }
 
         private async Task OpenVideoAsync()
         {
-
             var topLevel = TopLevel.GetTopLevel(App.MainWindow);
             if (topLevel == null) return;
 
-            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Выберите видеофайл",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(
+                new Avalonia.Platform.Storage.FilePickerOpenOptions
                 {
-                    new FilePickerFileType("Видеофайлы")
+                    Title = "Выберите видеофайл",
+                    AllowMultiple = false,
+                    FileTypeFilter = new[]
                     {
-                        Patterns = new[] { "*.mp4", "*.avi", "*.mkv", "*.mov", "*.wmv", "*.flv", "*.webm", "*.m4v" }
+                        new Avalonia.Platform.Storage.FilePickerFileType("Видеофайлы")
+                        {
+                            Patterns = new[] { "*.mp4", "*.avi", "*.mkv", "*.mov" }
+                        }
                     }
-                }
-            });
+                });
 
             if (files.Count > 0)
             {
-                var selectedFile = files[0].Path.LocalPath;
-                VideoPath = selectedFile;
-                //VideoSource = new UriSource($"file:///{selectedFile.Replace('\\', '/')}");
-                StatusText = $"Загружено видео: {System.IO.Path.GetFileName(selectedFile)}";
+                VideoPath = files[0].Path.LocalPath;
+                StatusText = $"Загружено: {System.IO.Path.GetFileName(VideoPath)}";
             }
         }
-        public void AddDetection(string className, float confidence, TimeSpan timestamp)
-        {
-            /*var detection = new DetectionItem
-            {
-                ClassName = className,
-                Confidence = confidence,
-                Timestamp = timestamp,
-                ConfidenceColor = confidence > 0.7 ? "#4CAF50" : confidence > 0.4 ? "#FFC107" : "#F44336"
-            };
-            Detections.Add(detection);
-            StatusText = $"Обнаружен: {className} ({confidence:P0}) на {timestamp:hh\\:mm\\:ss}";*/
-        }
 
-        public void ClearDetections()
-        {
-            _detections.Clear();
-            _statusText = "Журнал очищен";
-        }
         private async Task GoToSettingsAsync()
         {
             await _navigationService.NavigateToSettingsAsync();
         }
     }
 }
-

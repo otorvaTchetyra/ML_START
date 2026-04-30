@@ -78,25 +78,25 @@ namespace Client.ViewModels
         {
             if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
             {
-                ErrorMessage = "Введите email и пароль";
+                ErrorMessage = "Введите логин и пароль";
                 return;
             }
 
             IsLoading = true;
             ErrorMessage = string.Empty;
 
-            /*var result = await _authService.LoginAsync(Email, Password);
+            var success = await _authService.LoginAsync(Email, Password);
 
             IsLoading = false;
 
-            if (result.Success)
+            if (success)
             {
                 await _navigationService.NavigateToMainAsync();
             }
             else
             {
-                ErrorMessage = result.ErrorMessage ?? "Ошибка входа";
-            }*/
+                ErrorMessage = "Неверный логин или пароль";
+            }
         }
 
         private async Task GoToRegisterAsync()

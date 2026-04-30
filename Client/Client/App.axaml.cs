@@ -51,7 +51,7 @@ namespace Client
             try
             {
                 var navigationService = _serviceProvider?.GetRequiredService<NavigationService>();
-                _ = navigationService?.NavigateToSettingsAsync();
+                _ = navigationService?.NavigateToLoginAsync();
             }
             catch
             {
@@ -60,36 +60,60 @@ namespace Client
         }
         private IServiceProvider CreateContainer()
         {
-            IConfiguration configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json")
+                .Build();
+
             var services = new ServiceCollection();
+
             services.AddSingleton<IConfiguration>(configuration);
             services.AddSingleton<IConfigurationService, ConfigurationService>();
-            services.AddSingleton<IApiClient>(provider =>
+
+           
+            services.AddSingleton<HttpClient>(provider =>
             {
                 var configService = provider.GetRequiredService<IConfigurationService>();
-                var httpClient = new HttpClient
+                return new HttpClient
                 {
                     BaseAddress = new Uri(configService.GetApiUrl()),
                     Timeout = TimeSpan.FromSeconds(30)
                 };
+            });
+
+            
+            services.AddSingleton<IApiClient>(provider =>
+            {
+                var httpClient = provider.GetRequiredService<HttpClient>();
                 return new ApiClient(httpClient);
             });
+
             services.AddScoped<AuthService>();
             services.AddScoped<NavigationService>();
             services.AddScoped<RoutableViewModelsFactory>();
             services.AddScoped<MainWindowViewModel>();
+
+           
+            services.AddTransient<MainViewModel>();
+
             services.AddTransient<LoginViewModel>();
             services.AddTransient<RegisterViewModel>();
             services.AddTransient<SettingsViewModel>();
+
             services.AddScoped<IHealthService, HealthService>();
-            try
-            {
-                services.AddScoped<IScreen>(provider => provider?.GetRequiredService<MainWindowViewModel>());
-            }
-            catch
-            {
-                throw new NotImplementedException();
-            }
+
+            services.AddScoped<IScreen>(provider =>
+                provider.GetRequiredService<MainWindowViewModel>());
+
+            services.AddScoped<EventsService>();
+            services.AddScoped<StreamService>();
+            services.AddScoped<StatsService>();
+            services.AddScoped<LogsService>();
+
+            services.AddScoped<EventsService>();
+            services.AddScoped<StreamService>();
+            services.AddScoped<StatsService>();
+            services.AddScoped<LogsService>();
+
             return services.BuildServiceProvider();
         }
 
