@@ -11,7 +11,7 @@ router = APIRouter(prefix="/logs", tags=["logs"])
 
 @router.get("", response_model=list[AppLogResponse])
 def list_logs(
-    level: str | None = Query(None, regex="^(INFO|WARNING|ERROR)$"),
+    level: str | None = Query(None, pattern="^(INFO|WARNING|ERROR)$"),
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
     limit: int = Query(200, le=1000),
