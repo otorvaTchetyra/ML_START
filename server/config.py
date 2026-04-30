@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     token_expire_minutes: int = 480
 
-    model_path: str = "weights/best.pt"
+    model_path: str = "models/weights.pt"
     model_confidence: float = 0.5
     model_iou: float = 0.4
 
