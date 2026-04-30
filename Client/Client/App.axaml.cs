@@ -51,7 +51,7 @@ namespace Client
             try
             {
                 var navigationService = _serviceProvider?.GetRequiredService<NavigationService>();
-                _ = navigationService?.NavigateToLoginAsync();
+                _ = navigationService?.NavigateToSettingsAsync();
             }
             catch
             {
@@ -97,7 +97,8 @@ namespace Client
         {
             Locator.CurrentMutable.Register<IViewFor<RegisterViewModel>>(() => new RegisterView());
             Locator.CurrentMutable.Register<IViewFor<LoginViewModel>>(() => new LoginView());
-            //Locator.CurrentMutable.Register<IViewFor<SettingsViewModel>>(() => new SettingsView());
+            Locator.CurrentMutable.Register<IViewFor<SettingsViewModel>>(() => new SettingsView());
+            Locator.CurrentMutable.Register<IViewFor<MainViewModel>>(() => new MainView());
         }
     }
 }

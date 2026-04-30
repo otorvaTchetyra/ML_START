@@ -12,5 +12,6 @@ public class RoutableViewModelsFactory(IServiceProvider serviceProvider)
     public LoginViewModel CreateLoginViewModel() => _serviceProvider.GetRequiredService<LoginViewModel>();
     public RegisterViewModel CreateRegisterViewModel() => _serviceProvider.GetRequiredService<RegisterViewModel>();
     public SettingsViewModel CreateSettingsViewModel() => _serviceProvider.GetRequiredService<SettingsViewModel>();
+    public MainViewModel CreateMainViewModel() => _serviceProvider.GetRequiredService<MainViewModel>();
 
 }

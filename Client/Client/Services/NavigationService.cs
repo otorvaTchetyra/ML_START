@@ -37,7 +37,7 @@ public sealed class NavigationService
     }
     public async Task NavigateToMainAsync()
     {
-        var mainViewModel = _routableViewModelsFactory.CreateSettingsViewModel();
+        var mainViewModel = _routableViewModelsFactory.CreateMainViewModel();
         await mainViewModel.InitializeAsync();
         await _screen.Router.Navigate.Execute(mainViewModel);
     }

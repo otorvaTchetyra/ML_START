@@ -20,60 +20,6 @@
                        VerticalAlignment="Center"/>
         </rxui:RoutedViewHost.DefaultContent>
     </rxui:RoutedViewHost>
-        <!-- Верхнее меню -->
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="Файл">
-                <MenuItem Header="Открыть видео..." Command="{Binding OpenVideoCommand}" />
-            </MenuItem>
-        </Menu>
-
-        <Grid ColumnDefinitions="*, 300" Margin="10">
-            <!-- Левая часть: видеоплеер -->
-            <Grid Grid.Column="0" RowDefinitions="Auto, *" Margin="0,0,10,0">
-                <TextBlock Grid.Row="0" Text="Видеоплеер" FontSize="16" FontWeight="Bold" Margin="0,0,0,8" />
-                
-            </Grid>
-
-            <!-- Правая часть: журнал детектов 
-            <Grid Grid.Column="1" RowDefinitions="Auto, *">
-                <StackPanel Grid.Row="0" Spacing="5" Margin="0,0,0,10">
-                    <TextBlock Text="Журнал детекций" FontSize="16" FontWeight="Bold" />
-                    <TextBlock Text="{Binding DetectionsCount, StringFormat='Найдено объектов: {0}'}" 
-                               FontSize="12" Foreground="Gray" />
-                </StackPanel>
-                
-                <ScrollViewer Grid.Row="1">
-                    <ListBox ItemsSource="{Binding Detections}"
-                             SelectedItem="{Binding SelectedDetection}">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#1E1E2E" 
-                                        CornerRadius="6" 
-                                        Margin="0,4"
-                                        Padding="10">
-                                    <Grid ColumnDefinitions="Auto, *, Auto">
-                                        <TextBlock Grid.Column="0" 
-                                                   Text="{Binding Timestamp, StringFormat='{0:HH:mm:ss.fff}'}"
-                                                   FontFamily="Monospace"
-                                                   FontSize="11"
-                                                   Foreground="#888"
-                                                   Margin="0,0,10,0" />
-                                        <TextBlock Grid.Column="1" 
-                                                   Text="{Binding ClassName}"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="13" />
-                                        <TextBlock Grid.Column="2" 
-                                                   Text="{Binding Confidence, StringFormat='{0:P0}'}"
-                                                   FontSize="11"
-                                                   Foreground="{Binding ConfidenceColor}"
-                                                   Margin="10,0,0,0" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </ScrollViewer>
-            </Grid>-->
-        </Grid>
+        
     </DockPanel>
 </Window>
