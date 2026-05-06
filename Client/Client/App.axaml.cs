@@ -41,9 +41,11 @@ namespace Client
                     };
                 MainWindow = desktop.MainWindow;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    throw new NotImplementedException();
+                    System.Diagnostics.Debug.WriteLine($"Ошибка: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine(ex.StackTrace);
+                    throw;
                 }
             }
 
@@ -51,7 +53,7 @@ namespace Client
             try
             {
                 var navigationService = _serviceProvider?.GetRequiredService<NavigationService>();
-                _ = navigationService?.NavigateToLoginAsync();
+                _ = navigationService?.NavigateToMainAsync();
             }
             catch
             {

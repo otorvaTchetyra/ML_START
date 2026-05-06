@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Client.ViewModels"
+             xmlns:media="using:Iciclecreek.Avalonia.Controls.Media"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
@@ -11,7 +12,7 @@
 
     <DockPanel>
 
-        <!-- Верхнее меню -->
+         <!-- Верхнее меню -->
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Файл">
                 <MenuItem Header="Открыть видео..."
@@ -36,49 +37,102 @@
             </StackPanel>
         </Border>
 
+        <!-- Основной контент -->
         <Grid ColumnDefinitions="*,400" Margin="10">
 
-            <!-- Левая часть -->
-            <Grid Grid.Column="0"
-                  RowDefinitions="Auto,*,Auto"
-                  Margin="0,0,10,0">
+         <!-- Левая часть -->
+        <Grid Grid.Column="0"
+              RowDefinitions="Auto,*,Auto"
+              Margin="0,0,10,0">
 
-                <TextBlock Grid.Row="0"
-                           Text="Видеопоток"
-                           FontSize="16"
-                           FontWeight="Bold"
-                           Margin="0,0,0,8"/>
+            <TextBlock Grid.Row="0"
+                       Text="Видеопоток"
+                       FontSize="16"
+                       FontWeight="Bold"
+                       Margin="0,0,0,8"/>
 
-                <!-- Видео -->
-                <Border Grid.Row="1"
-                        Background="#111"
-                        CornerRadius="6">
-                    <TextBlock Text="Видео не загружено"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               Foreground="Gray"/>
-                </Border>
-
-                <!-- Кнопки -->
+            <!-- Видео + кнопки управления = всё в одном Grid -->
+            <Grid Grid.Row="1"
+                  Background="Black"
+                  VerticalAlignment="Stretch"
+                  HorizontalAlignment="Stretch">
+        
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>     <!-- видео -->
+                    <RowDefinition Height="Auto"/>  <!-- кнопки плеера -->
+                    <RowDefinition Height="Auto"/>  <!-- кнопки анализа -->
+                </Grid.RowDefinitions>
+        
+                <!-- Видео (растягивается на всю доступную высоту) -->
+                <media:VideoView x:Name="VideoPlayer"
+                                 Grid.Row="0"
+                                 Source="{Binding VideoPath}"
+                                 HorizontalAlignment="Stretch"
+                                 VerticalAlignment="Stretch"/>
+        
+                <!-- Слой для детекций поверх видео -->
+                <ItemsControl Grid.Row="0"
+                              ItemsSource="{Binding Events}"
+                              Background="Transparent">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas Background="Transparent" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Rectangle Stroke="Red" 
+                                       StrokeThickness="2"
+                                       Fill="Transparent"
+                                       Width="50"
+                                       Height="50"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+        
+                <!-- Кнопки управления плеером (внизу, справа) -->
+                <StackPanel Grid.Row="1"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="10"
+                            Margin="0,10">
+                    <Button Click="Play_Click" 
+                            Content="▶"
+                            Background="Gray"
+                            Foreground="White"
+                            Width="40" Height="40"/>
+                    <Button Click="Pause_Click" 
+                            Content="⏸"
+                            Background="Gray"
+                            Foreground="White"
+                            Width="40" Height="40"/>
+                    <Button Click="Stop_Click" 
+                            Content="⏹"
+                            Background="Gray"
+                            Foreground="White"
+                            Width="40" Height="40"/>
+                </StackPanel>
+                </Grid>
+                <!-- Кнопки управления анализом -->
                 <StackPanel Grid.Row="2"
                             Orientation="Horizontal"
                             Spacing="10"
-                            Margin="0,10,0,0">
-
+                            Margin="0,10">
                     <Button Content="Открыть видео"
                             Command="{Binding OpenVideoCommand}"/>
-
                     <Button Content="Остановить анализ"
                             Command="{Binding StopStreamCommand}"/>
-
                     <Button Content="Обновить данные"
                             Command="{Binding RefreshCommand}"/>
                 </StackPanel>
-            </Grid>
+        
+    
+    
+        </Grid>
 
             <!-- Правая часть -->
             <Grid Grid.Column="1"
-                  RowDefinitions="Auto,*,Auto,*">
+                  RowDefinitions="Auto,*,Auto,Auto">
 
                 <!-- Заголовок -->
                 <TextBlock Grid.Row="0"
@@ -107,7 +161,6 @@
                                         <StackPanel Orientation="Horizontal"
                                                     Spacing="10">
 
-                                            <!-- ✅ исправлено -->
                                             <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd.MM.yyyy HH:mm:ss}}"
                                                        FontSize="11"
                                                        Foreground="#888"/>
@@ -116,7 +169,6 @@
                                                     CornerRadius="3"
                                                     Padding="4,1">
 
-                                                <!-- ✅ тоже поправлено -->
                                                 <TextBlock Text="{Binding IsOutOfSchedule, StringFormat={}Вне расписания}"
                                                            FontSize="10"/>
                                             </Border>
@@ -149,13 +201,13 @@
 
                 <!-- Комментарий -->
                 <TextBlock Grid.Row="2"
-                           Text="Комментарий к событию"
+                           Text="Добавить комментарий"
                            FontSize="14"
                            FontWeight="Bold"
-                           Margin="0,0,0,8"/>
+                           Margin="0,10,0,8"/>
 
                 <Grid Grid.Row="3"
-                      RowDefinitions="*,Auto">
+                      RowDefinitions="Auto,Auto">
 
                     <TextBox Grid.Row="0"
                              Text="{Binding CommentText}"
@@ -166,7 +218,8 @@
                     <Button Grid.Row="1"
                             Content="Добавить комментарий"
                             Command="{Binding AddCommentCommand}"
-                            IsEnabled="{Binding SelectedEvent, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                            IsEnabled="{Binding SelectedEvent, Converter={x:Static ObjectConverters.IsNotNull}}"
+                            HorizontalAlignment="Left"/>
                 </Grid>
 
             </Grid>

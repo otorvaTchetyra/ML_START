@@ -1,11 +1,14 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Client.Models;
 using Client.Services;
+using Iciclecreek.Avalonia.Controls.Media;
 using ReactiveUI;
 using System;
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Client.ViewModels
 {
@@ -75,7 +78,11 @@ namespace Client.ViewModels
         public ReactiveCommand<Unit, Unit> StopStreamCommand { get; }
         public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
         public ReactiveCommand<Unit, Unit> AddCommentCommand { get; }
+        public ICommand PlayCommand { get; }
+        public ICommand PauseCommand { get; }
+        public ICommand StopCommand { get; }
 
+  
         public MainViewModel(IScreen screen, AuthService authService,
             NavigationService navigationService, EventsService eventsService,
             StreamService streamService)
@@ -91,6 +98,7 @@ namespace Client.ViewModels
             StopStreamCommand = ReactiveCommand.CreateFromTask(StopStreamAsync);
             RefreshCommand = ReactiveCommand.CreateFromTask(LoadData);
             AddCommentCommand = ReactiveCommand.CreateFromTask(AddCommentAsync);
+
         }
 
         public async Task InitializeAsync()

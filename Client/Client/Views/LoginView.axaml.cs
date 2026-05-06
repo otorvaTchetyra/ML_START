@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Client.ViewModels;
-using ReactiveUI.Avalonia;
+using Avalonia.ReactiveUI;
 
 namespace Client;
 
