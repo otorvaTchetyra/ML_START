@@ -41,5 +41,10 @@ public sealed class NavigationService
         await mainViewModel.InitializeAsync();
         await _screen.Router.Navigate.Execute(mainViewModel);
     }
-
+    public async Task NavigateToStreamAsync()
+    {
+        var mainViewModel = _routableViewModelsFactory.CreateStreamViewModel();
+        await mainViewModel.InitializeAsync();
+        await _screen.Router.Navigate.Execute(mainViewModel);
+    }
 }

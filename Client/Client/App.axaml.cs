@@ -100,6 +100,7 @@ namespace Client
             services.AddTransient<LoginViewModel>();
             services.AddTransient<RegisterViewModel>();
             services.AddTransient<SettingsViewModel>();
+            services.AddTransient<StreamViewModel>();
 
             services.AddScoped<IHealthService, HealthService>();
 
@@ -110,6 +111,7 @@ namespace Client
             services.AddScoped<StreamService>();
             services.AddScoped<StatsService>();
             services.AddScoped<LogsService>();
+            services.AddScoped<CameraCaptureService>();
 
             services.AddScoped<EventsService>();
             services.AddScoped<StreamService>();
@@ -125,6 +127,7 @@ namespace Client
             Locator.CurrentMutable.Register<IViewFor<LoginViewModel>>(() => new LoginView());
             Locator.CurrentMutable.Register<IViewFor<SettingsViewModel>>(() => new SettingsView());
             Locator.CurrentMutable.Register<IViewFor<MainViewModel>>(() => new MainView());
+            Locator.CurrentMutable.Register<IViewFor<StreamViewModel>>(() => new StreamView());
         }
     }
 }

@@ -1,11 +1,13 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
 using Client.Models;
 using Client.Services;
 using Iciclecreek.Avalonia.Controls.Media;
 using ReactiveUI;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Reactive;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -72,9 +74,10 @@ namespace Client.ViewModels
             get => _events;
             set => this.RaiseAndSetIfChanged(ref _events, value);
         }
-
+       
         public ReactiveCommand<Unit, Unit> OpenVideoCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToSettingsCommand { get; }
+        public ReactiveCommand<Unit, Unit> GoToStreamCommand { get; }
         public ReactiveCommand<Unit, Unit> StopStreamCommand { get; }
         public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
         public ReactiveCommand<Unit, Unit> AddCommentCommand { get; }
@@ -82,10 +85,9 @@ namespace Client.ViewModels
         public ICommand PauseCommand { get; }
         public ICommand StopCommand { get; }
 
-  
         public MainViewModel(IScreen screen, AuthService authService,
             NavigationService navigationService, EventsService eventsService,
-            StreamService streamService)
+            StreamService streamService, CameraCaptureService cameraService)
         {
             HostScreen = screen;
             _authService = authService;
@@ -95,6 +97,7 @@ namespace Client.ViewModels
 
             OpenVideoCommand = ReactiveCommand.CreateFromTask(OpenVideoAsync);
             GoToSettingsCommand = ReactiveCommand.CreateFromTask(GoToSettingsAsync);
+            GoToStreamCommand = ReactiveCommand.CreateFromTask(GoToStreamAsync);
             StopStreamCommand = ReactiveCommand.CreateFromTask(StopStreamAsync);
             RefreshCommand = ReactiveCommand.CreateFromTask(LoadData);
             AddCommentCommand = ReactiveCommand.CreateFromTask(AddCommentAsync);
@@ -170,7 +173,7 @@ namespace Client.ViewModels
                 StatusText = "Ошибка остановки анализа";
             }
         }
-
+        
         private async Task OpenVideoAsync()
         {
             var topLevel = TopLevel.GetTopLevel(App.MainWindow);
@@ -200,6 +203,10 @@ namespace Client.ViewModels
         private async Task GoToSettingsAsync()
         {
             await _navigationService.NavigateToSettingsAsync();
+        }
+        private async Task GoToStreamAsync()
+        {
+            await _navigationService.NavigateToStreamAsync();
         }
     }
 }

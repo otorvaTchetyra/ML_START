@@ -6,10 +6,17 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Client.SettingsView"
              x:DataType="vm:SettingsViewModel">
-  <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Margin="20" RowSpacing="15">
-        
+  
+    <Grid RowDefinitions="Auto, Auto,Auto,Auto,Auto,Auto,*" RowSpacing="15">
+        <Menu Grid.Row="0" DockPanel.Dock="Top">
+            <MenuItem Header="Видео"
+                      Command="{Binding GoToMainCommand}" />
+            <MenuItem Header="Стрим"
+                      Command="{Binding GoToStreamCommand}" />
+        </Menu>
+      
         <!-- Заголовок -->
-        <TextBlock Grid.Row="0" 
+        <TextBlock Grid.Row="1" 
                    Text="⚙️ Настройки приложения"
                    FontSize="18"
                    FontWeight="Bold"
@@ -17,7 +24,7 @@
                    Margin="0,0,0,10"/>
         
         <!-- 1. Настройки подключения к серверу -->
-        <Border Grid.Row="1"
+        <Border Grid.Row="2"
                 BorderBrush="#DDD"
                 BorderThickness="1"
                 CornerRadius="8"
@@ -44,7 +51,7 @@
         </Border>
         
         <!-- 2. Настройки нейросети -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 BorderBrush="#DDD"
                 BorderThickness="1"
                 CornerRadius="8"
@@ -88,7 +95,7 @@
         </Border>
         
         <!-- 3. Кнопки действий -->
-        <StackPanel Grid.Row="3" 
+        <StackPanel Grid.Row="4" 
                     Orientation="Horizontal" 
                     HorizontalAlignment="Right" 
                     Spacing="10"
@@ -100,7 +107,7 @@
         </StackPanel>
         
         <!-- Сообщение о статусе -->
-        <TextBlock Grid.Row="4" 
+        <TextBlock Grid.Row="5" 
                    Text="{Binding StatusMessage}"
                    Foreground="{Binding StatusMessageColor}"
                    FontSize="12"

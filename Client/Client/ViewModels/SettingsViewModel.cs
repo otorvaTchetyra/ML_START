@@ -85,7 +85,8 @@ namespace Client.ViewModels
 
         public ReactiveCommand<Unit, Unit> SaveSettingsCommand { get; }
         public ReactiveCommand<Unit, Unit> TestConnectionCommand { get; }
-        public ReactiveCommand<Unit, Task> NavigateToMainCommand { get; }
+        public ReactiveCommand<Unit, Unit> GoToMainCommand { get; }
+        public ReactiveCommand<Unit, Unit> GoToStreamCommand { get; }
         public ReactiveCommand<Unit, Task> DropDBCommand { get; }
         public SettingsViewModel( IConfigurationService configurationService, IHealthService healthService, IScreen screen, IApiClient apiClient, NavigationService navigationService) 
 		{
@@ -96,15 +97,20 @@ namespace Client.ViewModels
             _apiClient = apiClient;
             SaveSettingsCommand = ReactiveCommand.CreateFromTask(SaveSettingsAsync);
             TestConnectionCommand = ReactiveCommand.CreateFromTask(TestConnectionAsync);
-            NavigateToMainCommand = ReactiveCommand.Create(NavigateToMainAsync);
+            GoToMainCommand = ReactiveCommand.CreateFromTask(GoToMainAsync);
+            GoToStreamCommand = ReactiveCommand.CreateFromTask(GoToStreamAsync);
             DropDBCommand = ReactiveCommand.Create(DropDBAsync);
         }
 
        
 
-        private async Task NavigateToMainAsync()
+        private async Task GoToMainAsync()
         {
             await _navigationService.NavigateToMainAsync();
+        }
+        private async Task GoToStreamAsync()
+        {
+            await _navigationService.NavigateToStreamAsync();
         }
         private async Task DropDBAsync()
         {
