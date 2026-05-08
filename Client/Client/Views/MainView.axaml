@@ -69,21 +69,17 @@
                                  VerticalAlignment="Stretch"/>
                 
                 <!-- Слой для детекций поверх видео -->
-                <ItemsControl Grid.Row="0"
-                              ItemsSource="{Binding Events}"
-                              Background="Transparent">
+                 <ItemsControl ItemsSource="{Binding CurrentFrameInfo.bboxes}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <Canvas Background="Transparent" />
+                            <Canvas />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Rectangle Stroke="Red" 
-                                       StrokeThickness="2"
-                                       Fill="Transparent"
-                                       Width="50"
-                                       Height="50"/>
+                            <Rectangle Stroke="Red" StrokeThickness="2" Fill="Transparent"
+                                       Width="{Binding Width}" Height="{Binding Height}"
+                                       Canvas.Left="{Binding x1}" Canvas.Top="{Binding y1}" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

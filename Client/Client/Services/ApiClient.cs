@@ -33,7 +33,12 @@ public class ApiClient : IApiClient
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<T>();
     }
-
+    public async Task<HttpResponseMessage> PostRawAsync(string endpoint, object data)
+    {
+        var response = await _httpClient.PostAsJsonAsync(endpoint, data);
+        response.EnsureSuccessStatusCode();
+        return response;  
+    }
     public async Task<T?> PutAsync<T>(string endpoint, object data)
     {
         var response = await _httpClient.PutAsJsonAsync(endpoint, data);
