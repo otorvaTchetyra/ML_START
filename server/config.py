@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     intensity_window_sec: float = 5.0
     default_granule_threshold: int = 50
+    frame_skip: int = 1
+    tracker_iou_threshold: float = 0.3
 
     class Config:
         env_file = ".env"

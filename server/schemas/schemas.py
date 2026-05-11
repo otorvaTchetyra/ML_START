@@ -99,7 +99,9 @@ class SettingsUpdate(BaseModel):
     intensity_window_sec: float | None = None
     model_confidence: float | None = None
     model_iou: float | None = None
-    feeding_schedule: list[dict] | None = None  # [{"start": "08:00", "end": "09:00"}]
+    feeding_schedule: list[dict] | None = None
+    frame_skip: int | None = None
+    tracker_iou_threshold: float | None = None
 
 class SettingsResponse(BaseModel):
     granule_threshold: int
@@ -107,6 +109,8 @@ class SettingsResponse(BaseModel):
     model_confidence: float
     model_iou: float
     feeding_schedule: list[dict]
+    frame_skip: int
+    tracker_iou_threshold: float
 
 
 # ── Logs ──────────────────────────────────────────────────────────────────────

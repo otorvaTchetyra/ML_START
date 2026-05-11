@@ -15,6 +15,8 @@ _DEFAULTS = {
     "model_confidence": cfg.model_confidence,
     "model_iou": cfg.model_iou,
     "feeding_schedule": [],
+    "frame_skip": cfg.frame_skip,
+    "tracker_iou_threshold": cfg.tracker_iou_threshold,
 }
 
 
@@ -56,5 +58,8 @@ def update_settings(data: SettingsUpdate, db: Session = Depends(get_db), _ = Dep
         )
     if "intensity_window_sec" in updates:
         get_counter().window_sec = updates["intensity_window_sec"]
+    if "tracker_iou_threshold" in updates:
+        from api.stream import get_tracker
+        get_tracker().iou_threshold = updates["tracker_iou_threshold"]
 
     return get_current_settings(db)

@@ -16,6 +16,7 @@ from api.settings_api import get_current_settings
 from database import AppLog, FeedingEvent, SessionLocal, User, get_db
 from models.counter import GranuleCounter
 from models.detector import GranuleDetector
+from models.tracker import GranuleTracker
 from schemas.schemas import BBox, FrameAnalysisResponse, StreamStartRequest
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ router = APIRouter(prefix="/stream", tags=["stream"])
 
 _detector: GranuleDetector | None = None
 _counter: GranuleCounter | None = None
+_tracker: GranuleTracker | None = None
 _is_running: bool = False
 
 
@@ -39,6 +41,14 @@ def get_counter() -> GranuleCounter:
         from config import settings
         _counter = GranuleCounter(window_sec=settings.intensity_window_sec)
     return _counter
+
+
+def get_tracker() -> GranuleTracker:
+    global _tracker
+    if _tracker is None:
+        from config import settings
+        _tracker = GranuleTracker(iou_threshold=settings.tracker_iou_threshold)
+    return _tracker
 
 
 def _is_in_schedule(schedule: list[dict]) -> bool:
@@ -97,10 +107,14 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
 
     detector = get_detector()
     counter = get_counter()
+    tracker = get_tracker()
     counter.reset()
+    tracker.reset()
 
     threshold: int = app_settings.get("granule_threshold", 50)
     schedule: list[dict] = app_settings.get("feeding_schedule", [])
+    frame_skip: int = max(1, app_settings.get("frame_skip", 1))
+    is_camera = source.isdigit()
 
     cap = _open_capture(source)
     if not cap.isOpened():
@@ -110,7 +124,9 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
         _log_error(f"Не удалось открыть источник: {source}")
         raise HTTPException(status_code=400, detail="Не удалось открыть источник видео")
 
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
     frame_index = 0
+
     try:
         while _is_running:
             try:
@@ -122,10 +138,16 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
             if not ret:
                 break
 
-            ts = monotonic()
+            if frame_index % frame_skip != 0:
+                frame_index += 1
+                continue
+
+            ts = monotonic() if is_camera else frame_index / fps
+
             try:
                 detections = detector.detect(frame)
-                result = counter.process_frame(detections, timestamp=ts)
+                new_detections = tracker.update(detections)
+                result = counter.process_frame(new_detections, timestamp=ts)
             except Exception as exc:
                 _log_error(f"Ошибка обработки кадра {frame_index}: {exc}")
                 frame_index += 1
@@ -153,7 +175,7 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
                 out_of_schedule=out_of_schedule,
                 bboxes=[
                     BBox(x1=d.x1, y1=d.y1, x2=d.x2, y2=d.y2, confidence=d.confidence)
-                    for d in result.detections
+                    for d in detections
                 ],
             )
 
