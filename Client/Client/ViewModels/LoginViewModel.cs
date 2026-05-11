@@ -31,6 +31,7 @@ namespace Client.ViewModels
         }
         private readonly AuthService _authService;
         private readonly NavigationService _navigationService;
+        private readonly JournalService _journalService;
 
         private string _email = string.Empty;
         private string _password = string.Empty;
@@ -52,8 +53,14 @@ namespace Client.ViewModels
         public string ErrorMessage
         {
             get => _errorMessage;
-            set => this.RaiseAndSetIfChanged(ref _errorMessage, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _errorMessage, value);
+                this.RaisePropertyChanged(nameof(HasError));
+            }
         }
+
+        public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
         public bool IsLoading
         {
@@ -64,10 +71,15 @@ namespace Client.ViewModels
         public ReactiveCommand<Unit, Unit> LoginCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToRegisterCommand { get; }
 
-        public LoginViewModel(IScreen screen, AuthService authService, NavigationService navigationService)
+        public LoginViewModel(
+            IScreen screen,
+            AuthService authService,
+            NavigationService navigationService,
+            JournalService journalService)
         {
             _authService = authService;
             _navigationService = navigationService;
+            _journalService = journalService;
             HostScreen = screen;
 
             LoginCommand = ReactiveCommand.CreateFromTask(LoginAsync);
@@ -91,10 +103,24 @@ namespace Client.ViewModels
 
             if (success)
             {
+                await _journalService.RecordAsync(
+                    eventCode: "login_success",
+                    message: $"Пользователь {Email} вошёл в приложение",
+                    source: "auth",
+                    action: "login",
+                    level: "info",
+                    usernameSnapshot: Email);
                 await _navigationService.NavigateToMainAsync();
             }
             else
             {
+                await _journalService.RecordAsync(
+                    eventCode: "login_failed",
+                    message: $"Неудачная попытка входа для пользователя {Email}",
+                    source: "auth",
+                    action: "login",
+                    level: "warning",
+                    usernameSnapshot: Email);
                 ErrorMessage = "Неверный логин или пароль";
             }
         }

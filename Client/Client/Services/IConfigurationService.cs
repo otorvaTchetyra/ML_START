@@ -10,8 +10,9 @@ namespace Client.Services
         event Action<string>? UrlChanged;
 
         string GetApiUrl();
+        string GetTheme();
         IConfiguration GetConfig();
         void SaveApiUrl(string url);
-        void SaveSettings(float confidence, float iou);
+        void SaveSettings(float confidence, float iou, string theme);
     }
 }

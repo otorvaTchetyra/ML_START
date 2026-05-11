@@ -1,10 +1,4 @@
-﻿using Client.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
+using Client.Models;
 using System.Threading.Tasks;
 
 namespace Client.Services
@@ -12,13 +6,11 @@ namespace Client.Services
     public class AuthService
     {
         private readonly IApiClient _apiClient;
-        private readonly HttpClient _httpClient;
         private string? _token;
 
-        public AuthService(IApiClient apiClient, HttpClient httpClient)
+        public AuthService(IApiClient apiClient)
         {
             _apiClient = apiClient;
-            _httpClient = httpClient;
         }
 
         public bool IsAuthenticated => _token != null;
@@ -32,12 +24,10 @@ namespace Client.Services
                     new LoginRequest { Username = username, Password = password }
                 );
 
-                if (response?.AccessToken != null)
+                if (!string.IsNullOrWhiteSpace(response?.AccessToken))
                 {
-                    _token = response.AccessToken;
-                    // Подставляем токен во все следующие запросы
-                    _httpClient.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", _token);
+                    _token = response!.AccessToken;
+                    _apiClient.SetAuthToken(_token);
                     return true;
                 }
                 return false;
@@ -51,7 +41,7 @@ namespace Client.Services
         public void Logout()
         {
             _token = null;
-            _httpClient.DefaultRequestHeaders.Authorization = null;
+            _apiClient.SetAuthToken(null);
         }
     }
 }

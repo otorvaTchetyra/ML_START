@@ -12,7 +12,8 @@ namespace Client.Models
         public bool IsOutOfSchedule { get; set; }
         public bool ThresholdExceeded { get; set; }
         public string? Comment { get; set; }
-        public StreamFrame StreamFrame { get; set; }
+        public StreamFrame? StreamFrame { get; set; }
+
         public bool HasComment => !string.IsNullOrEmpty(Comment);
         public string StatusColor => IsOutOfSchedule ? "Orange" : "Green";
     }

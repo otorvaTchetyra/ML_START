@@ -12,18 +12,18 @@ namespace Client.Services
     {
         private VideoCapture _capture;
         private CancellationTokenSource _cts;
+        private int _frameCounter = 0;
+        private readonly int _sendEveryNFrames = 10;
         private readonly IApiClient _apiClient;
         private readonly EventsService _eventsService;
-        private readonly StreamService _streamService;
 
         public event Action<Mat> OnFrameCaptured;
         public event Action<byte[], FeedingEvent> OnDetectionResult;
 
-        public CameraCaptureService(IApiClient apiClient, EventsService eventsService, StreamService streamService)
+        public CameraCaptureService(IApiClient apiClient, EventsService eventsService)
         {
             _apiClient = apiClient;
             _eventsService = eventsService;
-            _streamService = streamService;
         }
 
         public async Task StartCaptureAsync(int cameraIndex = 0)
@@ -51,10 +51,47 @@ namespace Client.Services
             {
                 if (frame.Empty()) break;
 
+                _frameCounter++;
                 OnFrameCaptured?.Invoke(frame.Clone());
+
+                // Отправляем каждый 10-й кадр
+                if (_frameCounter % _sendEveryNFrames == 0)
+                {
+                    await SendFrameForDetection(frame);
+                }
 
                 await Task.Delay(33); // ~30 FPS
             }
+        }
+
+        private async Task SendFrameForDetection(Mat frame)
+        {
+            // Конвертируем Mat в byte[]
+            var imageBytes = frame.ToBytes(".jpg");
+
+            // Отправляем на сервер
+            //var result = await _apiClient.PostAsync<FeedingEvent>("api/detect", imageBytes);
+
+            // Сохраняем событие
+            /*var feedingEvent = new FeedingEvent
+            {
+                Timestamp = DateTime.Now,
+                GranuleCount = result.GranuleCount,
+                IntensityPerSec = result.IntensityPerSec,
+                IsOutOfSchedule = IsFeedingTimeOutOfSchedule()
+            };*/
+
+            //await _eventsService.AddEventAsync(feedingEvent);
+            //OnDetectionResult?.Invoke(imageBytes, feedingEvent);
+        }
+
+        private bool IsFeedingTimeOutOfSchedule()
+        {
+            // Проверка расписания кормления
+            //var currentTime = DateTime.Now.TimeOfDay;
+            //var schedule = _scheduleService.GetCurrentSchedule();
+            //return !schedule.Contains(currentTime);
+            return false;
         }
 
         public void Dispose()

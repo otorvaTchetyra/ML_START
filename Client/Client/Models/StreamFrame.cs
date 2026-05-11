@@ -1,4 +1,4 @@
-﻿using Avalonia.Media.Imaging;
+using Avalonia.Media.Imaging;
 using System.Collections.Generic;
 
 namespace Client.Models
@@ -6,7 +6,7 @@ namespace Client.Models
     public class StreamFrame
     {
         public int Frame_index { get; set; }
-        public Bitmap Frame { get; set; }
+        public Bitmap? Frame { get; set; }
         public double Timestamp { get; set; }
         public int Granule_count { get; set; }
         public float Intensity_per_sec { get; set; }

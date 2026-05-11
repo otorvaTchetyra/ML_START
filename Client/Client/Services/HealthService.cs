@@ -18,13 +18,14 @@ namespace Client.Services
         }
         public void ResetUrl(string? url)
         {
-            _apiClient.SetUrl(url);
+            if (!string.IsNullOrWhiteSpace(url))
+                _apiClient.SetUrl(url);
         }
         public async Task<HealthStatus> GetHealthStatusAsync()
         {
             try
             {
-                var response = await _apiClient.GetAsync<object>("api/health");
+                var response = await _apiClient.GetAsync<object>("/health");
                 return new HealthStatus
                 {
                     IsAvailable = true,
@@ -52,7 +53,7 @@ namespace Client.Services
         {
             try
             {
-                var response = await _apiClient.PostAsync<object>("api/health", "");
+                var response = await _apiClient.PostAsync<object>("/health", "");
                 return new HealthStatus
                 {
                     IsAvailable = true,

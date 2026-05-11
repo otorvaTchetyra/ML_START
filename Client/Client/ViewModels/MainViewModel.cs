@@ -1,17 +1,17 @@
-﻿using Avalonia.Controls;
-using Avalonia.Interactivity;
+using Avalonia.Controls;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using Client.Models;
 using Client.Services;
-using Iciclecreek.Avalonia.Controls.Media;
 using ReactiveUI;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Reactive;
+using System.Text.Json;
 using System.Threading.Tasks;
-using System.Windows.Input;
+using OpenCvSharp;
 
 namespace Client.ViewModels
 {
@@ -24,21 +24,31 @@ namespace Client.ViewModels
         private readonly AuthService _authService;
         private readonly NavigationService _navigationService;
         private readonly EventsService _eventsService;
+        private readonly JournalService _journalService;
         private readonly StreamService _streamService;
+        private readonly DispatcherTimer _journalRefreshTimer;
+        private readonly object _videoFrameLock = new();
 
         private string _statusText = "Готов к работе";
-        private string _serverStatus = "Подключение...";
+        private string _serverStatus = "Проверка подключения...";
         private string _serverStatusColor = "Gray";
         private string _videoPath = string.Empty;
         private string _commentText = string.Empty;
+        private bool _isRawVideoVisible = true;
+        private bool _isAnnotatedFrameVisible;
+        private int _videoSourceWidth = 0;
+        private int _videoSourceHeight = 0;
+        private double _videoViewportWidth = 0;
+        private double _videoViewportHeight = 0;
+        private Bitmap? _annotatedFrame;
+        private VideoCapture? _analysisCapture;
         private FeedingEvent? _selectedEvent;
+        private JournalEntry? _selectedJournalEntry;
+        private StreamFrame _currentFrameInfo = new();
+        private ObservableCollection<OverlayDetection> _overlayDetections = new();
         private ObservableCollection<FeedingEvent> _events = new();
-        private StreamFrame? _currentFrameInfo;
-        public StreamFrame CurrentFrameInfo
-        {
-            get => _currentFrameInfo;
-            set => this.RaiseAndSetIfChanged(ref _currentFrameInfo, value);
-        }
+        private ObservableCollection<JournalEntry> _journalEntries = new();
+
         public string StatusText
         {
             get => _statusText;
@@ -63,6 +73,24 @@ namespace Client.ViewModels
             set => this.RaiseAndSetIfChanged(ref _videoPath, value);
         }
 
+        public Bitmap? AnnotatedFrame
+        {
+            get => _annotatedFrame;
+            set => this.RaiseAndSetIfChanged(ref _annotatedFrame, value);
+        }
+
+        public bool IsAnnotatedFrameVisible
+        {
+            get => _isAnnotatedFrameVisible;
+            set => this.RaiseAndSetIfChanged(ref _isAnnotatedFrameVisible, value);
+        }
+
+        public bool IsRawVideoVisible
+        {
+            get => _isRawVideoVisible;
+            set => this.RaiseAndSetIfChanged(ref _isRawVideoVisible, value);
+        }
+
         public string CommentText
         {
             get => _commentText;
@@ -80,34 +108,68 @@ namespace Client.ViewModels
             get => _events;
             set => this.RaiseAndSetIfChanged(ref _events, value);
         }
-       
+
+        public ObservableCollection<JournalEntry> JournalEntries
+        {
+            get => _journalEntries;
+            set => this.RaiseAndSetIfChanged(ref _journalEntries, value);
+        }
+
+        public JournalEntry? SelectedJournalEntry
+        {
+            get => _selectedJournalEntry;
+            set => this.RaiseAndSetIfChanged(ref _selectedJournalEntry, value);
+        }
+
+        public StreamFrame CurrentFrameInfo
+        {
+            get => _currentFrameInfo;
+            set => this.RaiseAndSetIfChanged(ref _currentFrameInfo, value);
+        }
+
+        public ObservableCollection<OverlayDetection> OverlayDetections
+        {
+            get => _overlayDetections;
+            set => this.RaiseAndSetIfChanged(ref _overlayDetections, value);
+        }
+
         public ReactiveCommand<Unit, Unit> OpenVideoCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToSettingsCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToStreamCommand { get; }
+        public ReactiveCommand<Unit, Unit> LogoutCommand { get; }
         public ReactiveCommand<Unit, Unit> StopStreamCommand { get; }
         public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
         public ReactiveCommand<Unit, Unit> AddCommentCommand { get; }
-        public ICommand PlayCommand { get; }
-        public ICommand PauseCommand { get; }
-        public ICommand StopCommand { get; }
 
-        public MainViewModel(IScreen screen, AuthService authService,
-            NavigationService navigationService, EventsService eventsService,
-            StreamService streamService, CameraCaptureService cameraService)
+        public MainViewModel(
+            IScreen screen,
+            AuthService authService,
+            NavigationService navigationService,
+            EventsService eventsService,
+            JournalService journalService,
+            StreamService streamService,
+            CameraCaptureService cameraService)
         {
             HostScreen = screen;
             _authService = authService;
             _navigationService = navigationService;
             _eventsService = eventsService;
+            _journalService = journalService;
             _streamService = streamService;
+
+            _journalRefreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(2)
+            };
+            _journalRefreshTimer.Tick += async (_, _) => await LoadJournalAsync();
 
             OpenVideoCommand = ReactiveCommand.CreateFromTask(OpenVideoAsync);
             GoToSettingsCommand = ReactiveCommand.CreateFromTask(GoToSettingsAsync);
             GoToStreamCommand = ReactiveCommand.CreateFromTask(GoToStreamAsync);
+            LogoutCommand = ReactiveCommand.CreateFromTask(LogoutAsync);
             StopStreamCommand = ReactiveCommand.CreateFromTask(StopStreamAsync);
             RefreshCommand = ReactiveCommand.CreateFromTask(LoadData);
             AddCommentCommand = ReactiveCommand.CreateFromTask(AddCommentAsync);
-
         }
 
         public async Task InitializeAsync()
@@ -115,51 +177,94 @@ namespace Client.ViewModels
             if (!IsInitialized)
             {
                 await LoadData();
+                _journalRefreshTimer.Start();
                 IsInitialized = true;
             }
         }
 
         private async Task LoadData()
         {
+            StatusText = "Загрузка данных...";
+
             try
             {
-                StatusText = "Загрузка данных...";
-
-                // Загружаем события
                 var events = await _eventsService.GetEventsAsync();
                 Events.Clear();
                 if (events != null)
                     foreach (var e in events)
                         Events.Add(e);
 
-                // Проверяем статус сервера
-                var status = await _streamService.GetStatusAsync();
-                if (status != null)
-                {
-                    ServerStatus = "Сервер: онлайн";
-                    ServerStatusColor = "Green";
-                }
-
                 StatusText = $"Загружено событий: {Events.Count}";
             }
             catch
             {
-                ServerStatus = "Сервер: недоступен";
-                ServerStatusColor = "Red";
-                StatusText = "Ошибка загрузки данных";
+                StatusText = "Ошибка загрузки событий";
             }
+
+            await LoadJournalAsync();
+
+            try
+            {
+                var status = await _streamService.GetStatusAsync();
+                if (status != null)
+                {
+                    ServerStatus = "Успешное подключение к серверу";
+                    ServerStatusColor = "Green";
+                }
+            }
+            catch
+            {
+                ServerStatus = "Сервер недоступен";
+                ServerStatusColor = "Red";
+                if (StatusText == "Загрузка данных...")
+                    StatusText = "Ошибка загрузки данных";
+            }
+        }
+
+        private async Task LoadJournalAsync()
+        {
+            try
+            {
+                var entries = await _journalService.GetEntriesAsync(limit: 200);
+                JournalEntries.Clear();
+                foreach (var entry in entries)
+                    JournalEntries.Add(entry);
+            }
+            catch
+            {
+            }
+        }
+
+        public async Task LogPlaybackActionAsync(string action, string message)
+        {
+            await _journalService.RecordAsync(
+                eventCode: "custom",
+                message: message,
+                source: "player",
+                action: action,
+                level: "info");
+            await LoadJournalAsync();
         }
 
         private async Task AddCommentAsync()
         {
-            if (SelectedEvent == null || string.IsNullOrWhiteSpace(CommentText))
+            if (SelectedJournalEntry == null || string.IsNullOrWhiteSpace(CommentText))
                 return;
 
             try
             {
-                await _eventsService.AddCommentAsync(SelectedEvent.Id, CommentText);
+                await _journalService.AddCommentAsync(SelectedJournalEntry.Id, CommentText);
+                await _journalService.RecordAsync(
+                    eventCode: "comment_added",
+                    message: $"Добавлен комментарий к записи журнала {SelectedJournalEntry.Id}",
+                    source: "journal",
+                    action: "add_comment",
+                    level: "info",
+                    entityType: "journal_entry",
+                    entityId: SelectedJournalEntry.Id,
+                    comment: CommentText);
                 CommentText = string.Empty;
-                await LoadData();
+                await LoadJournalAsync();
             }
             catch
             {
@@ -172,14 +277,47 @@ namespace Client.ViewModels
             try
             {
                 await _streamService.StopAsync();
+                await _journalService.RecordAsync(
+                    eventCode: "stream_stopped",
+                    message: "Анализ потока остановлен вручную",
+                    source: "stream",
+                    action: "stop",
+                    level: "info");
                 StatusText = "Анализ остановлен";
+                await LoadJournalAsync();
             }
             catch
             {
                 StatusText = "Ошибка остановки анализа";
             }
         }
-        
+
+        public async Task PauseAnalysisAsync()
+        {
+            try
+            {
+                await _streamService.StopAsync();
+                await _journalService.RecordAsync(
+                    eventCode: "stream_paused",
+                    message: "Анализ потока поставлен на паузу",
+                    source: "player",
+                    action: "pause",
+                    level: "info");
+                StatusText = "Анализ поставлен на паузу";
+                await LoadJournalAsync();
+            }
+            catch
+            {
+                StatusText = "Ошибка паузы анализа";
+            }
+        }
+
+        public async Task StopVideoAndAnalysisAsync()
+        {
+            await StopStreamAsync();
+            ClearAnnotatedFrame();
+        }
+
         private async Task OpenVideoAsync()
         {
             var topLevel = TopLevel.GetTopLevel(App.MainWindow);
@@ -202,48 +340,230 @@ namespace Client.ViewModels
             if (files.Count > 0)
             {
                 VideoPath = files[0].Path.LocalPath;
+                ClearAnnotatedFrame();
+                ResetAnalysisCapture(VideoPath);
                 StatusText = $"Загружено: {System.IO.Path.GetFileName(VideoPath)}";
-                await _streamService.SendVideoAsync(VideoPath, onFrameReceived: OnStreamFrame); // тут вызов детектов, логика воспроизведения в mainView.axaml.cs, хотя лучше бы сюда всё 
-            }
-        }
-        private void OnStreamFrame(StreamFrame frame)// тут надо создавать ивент по полученному кадру с детектами. Его надо в список всех ивентов для журнала
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                StatusText = $"Гранул: {frame.Granule_count} | {frame.Intensity_per_sec:F1}/сек";
-                UpdateBoundingBoxes(frame);
 
-                if (frame.Threshold_exceeded || frame.Out_of_schedule)
+                try
                 {
-                    Events.Insert(0, new FeedingEvent
+                    using var capture = new VideoCapture(VideoPath);
+                    if (capture.IsOpened())
                     {
-                        Timestamp = DateTime.Now,
-                        GranuleCount = frame.Granule_count,
-                        IntensityPerSec = frame.Intensity_per_sec,
-                        ThresholdExceeded = frame.Threshold_exceeded,
-                        IsOutOfSchedule = frame.Out_of_schedule,
-                        StreamFrame = frame
-                    });
+                        _videoSourceWidth = (int)Math.Max(1, capture.FrameWidth);
+                        _videoSourceHeight = (int)Math.Max(1, capture.FrameHeight);
+                    }
                 }
-            });
-        }
-        private void UpdateBoundingBoxes(StreamFrame frame)// они передают коорды, а тут редакт для вывода на экран
-        {
-            foreach (DetectionBbox bbox in frame.bboxes)
-            {
-                bbox.Width = bbox.x2 - bbox.x1;
-                bbox.Height = bbox.y2 - bbox.y1;
-            }
-            CurrentFrameInfo = frame;
+                catch
+                {
+                    _videoSourceWidth = 0;
+                    _videoSourceHeight = 0;
+                }
 
+                await _journalService.RecordAsync(
+                    eventCode: "video_opened",
+                    message: $"Открыт видеофайл {System.IO.Path.GetFileName(VideoPath)}",
+                    source: "stream",
+                    action: "open_video",
+                    level: "info",
+                    detailsJson: $"{{\"path\":\"{VideoPath.Replace("\\", "\\\\")}\"}}");
+
+                try
+                {
+                    await _streamService.SendVideoAsync(VideoPath, OnStreamFrame);
+                    StatusText = "Анализ видео запущен";
+                }
+                catch (Exception ex)
+                {
+                    StatusText = $"Не удалось запустить анализ видео: {ex.Message}";
+                }
+
+                await LoadJournalAsync();
+            }
         }
+
+        private void OnStreamFrame(StreamFrame frame)
+        {
+            var annotatedFrame = BuildAnnotatedFrame(frame);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                foreach (var bbox in frame.bboxes)
+                {
+                    bbox.Width = bbox.x2 - bbox.x1;
+                    bbox.Height = bbox.y2 - bbox.y1;
+                }
+
+                CurrentFrameInfo = frame;
+                if (annotatedFrame != null)
+                {
+                    AnnotatedFrame = annotatedFrame;
+                    IsAnnotatedFrameVisible = true;
+                    IsRawVideoVisible = false;
+                }
+
+                RebuildOverlayDetections(frame);
+                StatusText = $"Кадр {frame.Frame_index}: гранул {frame.Granule_count}, детектов {frame.bboxes.Count}";
+            });
+
+            if (frame.Threshold_exceeded || frame.Out_of_schedule)
+            {
+                _ = RecordFrameAlertAsync(frame);
+            }
+        }
+
+        private Bitmap? BuildAnnotatedFrame(StreamFrame frame)
+        {
+            if (string.IsNullOrWhiteSpace(VideoPath))
+                return null;
+
+            lock (_videoFrameLock)
+            {
+                if (_analysisCapture == null || !_analysisCapture.IsOpened())
+                    ResetAnalysisCapture(VideoPath);
+
+                if (_analysisCapture == null || !_analysisCapture.IsOpened())
+                    return null;
+
+                _analysisCapture.Set(VideoCaptureProperties.PosFrames, Math.Max(0, frame.Frame_index));
+
+                using var mat = new Mat();
+                if (!_analysisCapture.Read(mat) || mat.Empty())
+                    return null;
+
+                foreach (var bbox in frame.bboxes)
+                {
+                    var left = ClampToFrame(Math.Min(bbox.x1, bbox.x2), mat.Width);
+                    var top = ClampToFrame(Math.Min(bbox.y1, bbox.y2), mat.Height);
+                    var right = ClampToFrame(Math.Max(bbox.x1, bbox.x2), mat.Width);
+                    var bottom = ClampToFrame(Math.Max(bbox.y1, bbox.y2), mat.Height);
+
+                    var width = Math.Max(2, right - left);
+                    var height = Math.Max(2, bottom - top);
+                    Cv2.Rectangle(mat, new Rect(left, top, width, height), new Scalar(0, 0, 255), 2);
+
+                    var label = bbox.confidence.ToString("0.00", CultureInfo.InvariantCulture);
+                    var labelOrigin = new Point(left, Math.Max(12, top - 4));
+                    Cv2.PutText(mat, label, labelOrigin, HersheyFonts.HersheySimplex, 0.45, new Scalar(0, 0, 255), 1);
+                }
+
+                return new Bitmap(new MemoryStream(mat.ToBytes(".jpg")));
+            }
+        }
+
+        private static int ClampToFrame(double value, int limit)
+        {
+            if (limit <= 1)
+                return 0;
+
+            return (int)Math.Clamp(Math.Round(value), 0, limit - 1);
+        }
+
+        private void ResetAnalysisCapture(string path)
+        {
+            lock (_videoFrameLock)
+            {
+                _analysisCapture?.Release();
+                _analysisCapture?.Dispose();
+                _analysisCapture = new VideoCapture(path);
+            }
+        }
+
+        private void ClearAnnotatedFrame()
+        {
+            AnnotatedFrame = null;
+            IsAnnotatedFrameVisible = false;
+            IsRawVideoVisible = true;
+        }
+
+        private async Task RecordFrameAlertAsync(StreamFrame frame)
+        {
+            var reason = frame.Threshold_exceeded && frame.Out_of_schedule
+                ? "превышен порог и появление вне расписания"
+                : frame.Threshold_exceeded
+                    ? "превышен порог"
+                    : "анализ вне расписания";
+
+            await _journalService.RecordAsync(
+                eventCode: "frame_detection",
+                message: $"Кадр {frame.Frame_index}: {reason}. гранул: {frame.Granule_count}, детектов: {frame.bboxes.Count}",
+                source: "stream",
+                action: "frame_analysis",
+                level: "warning",
+                detailsJson: JsonSerializer.Serialize(new
+                {
+                    frame_index = frame.Frame_index,
+                    granule_count = frame.Granule_count,
+                    intensity_per_sec = frame.Intensity_per_sec,
+                    intensity_per_min = frame.Intensity_per_min,
+                    threshold_exceeded = frame.Threshold_exceeded,
+                    out_of_schedule = frame.Out_of_schedule,
+                    bboxes = frame.bboxes
+                }));
+
+            await LoadJournalAsync();
+        }
+
+        public void UpdateVideoViewport(double width, double height)
+        {
+            if (width <= 0 || height <= 0)
+                return;
+
+            _videoViewportWidth = width;
+            _videoViewportHeight = height;
+            RebuildOverlayDetections(CurrentFrameInfo);
+        }
+
+        private void RebuildOverlayDetections(StreamFrame frame)
+        {
+            if (_videoViewportWidth <= 0 || _videoViewportHeight <= 0 || _videoSourceWidth <= 0 || _videoSourceHeight <= 0)
+            {
+                OverlayDetections.Clear();
+                return;
+            }
+
+            var scale = Math.Min(_videoViewportWidth / _videoSourceWidth, _videoViewportHeight / _videoSourceHeight);
+            var contentWidth = _videoSourceWidth * scale;
+            var contentHeight = _videoSourceHeight * scale;
+            var offsetX = (_videoViewportWidth - contentWidth) / 2.0;
+            var offsetY = (_videoViewportHeight - contentHeight) / 2.0;
+
+            var overlays = new ObservableCollection<OverlayDetection>();
+            foreach (var bbox in frame.bboxes)
+            {
+                overlays.Add(new OverlayDetection
+                {
+                    Left = offsetX + bbox.x1 * scale,
+                    Top = offsetY + bbox.y1 * scale,
+                    Width = Math.Max(1, (bbox.x2 - bbox.x1) * scale),
+                    Height = Math.Max(1, (bbox.y2 - bbox.y1) * scale),
+                    Label = $"Conf: {bbox.confidence:0.00}"
+                });
+            }
+
+            OverlayDetections = overlays;
+        }
+
         private async Task GoToSettingsAsync()
         {
             await _navigationService.NavigateToSettingsAsync();
         }
+
         private async Task GoToStreamAsync()
         {
             await _navigationService.NavigateToStreamAsync();
+        }
+
+        private async Task LogoutAsync()
+        {
+            _journalRefreshTimer.Stop();
+            await _journalService.RecordAsync(
+                eventCode: "logout",
+                message: "Пользователь вышел из приложения",
+                source: "auth",
+                action: "logout",
+                level: "info");
+            _authService.Logout();
+            await _navigationService.NavigateToLoginAsync();
         }
     }
 }

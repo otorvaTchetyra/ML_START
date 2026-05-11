@@ -1,54 +1,56 @@
-﻿using Avalonia.Media.Imaging;
+using Avalonia.Media.Imaging;
 using Client.Models;
 using Client.Services;
 using OpenCvSharp;
 using ReactiveUI;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Reactive;
-using System.Text;
 using System.Threading.Tasks;
-using static Microsoft.IO.RecyclableMemoryStreamManager;
 
 namespace Client.ViewModels
 {
-    public class StreamViewModel: ViewModelBase, IRoutableViewModel
+    public class StreamViewModel : ViewModelBase, IRoutableViewModel
     {
-
         private bool IsInitialized;
 
         public string? UrlPathSegment => "main";
         public IScreen HostScreen { get; }
+
         private readonly AuthService _authService;
         private readonly NavigationService _navigationService;
         private readonly EventsService _eventsService;
+        private readonly JournalService _journalService;
         private readonly StreamService _streamService;
-        private CameraCaptureService _cameraService;
-        private bool _isCapturing = false;
-        private StreamFrame _currentFrameInfo;
+        private readonly CameraCaptureService _cameraService;
+        private bool _isCapturing;
+
+        private StreamFrame _currentFrameInfo = new();
         public StreamFrame CurrentFrameInfo
         {
             get => _currentFrameInfo;
             set => this.RaiseAndSetIfChanged(ref _currentFrameInfo, value);
         }
-        private Bitmap _currentFrame;
-        public Bitmap CurrentFrame
+
+        private Bitmap? _currentFrame;
+        public Bitmap? CurrentFrame
         {
             get => _currentFrame;
             set => this.RaiseAndSetIfChanged(ref _currentFrame, value);
         }
 
-        private ObservableCollection<FeedingEvent> _events;
+        private ObservableCollection<FeedingEvent> _events = new();
         public ObservableCollection<FeedingEvent> Events
         {
             get => _events;
             set => this.RaiseAndSetIfChanged(ref _events, value);
         }
+
         private string _statusText = "Готов к работе";
         private string _serverStatus = "Подключение...";
         private string _serverStatusColor = "Gray";
+
         public string StatusText
         {
             get => _statusText;
@@ -67,21 +69,25 @@ namespace Client.ViewModels
             set => this.RaiseAndSetIfChanged(ref _serverStatusColor, value);
         }
 
-
         public ReactiveCommand<Unit, Unit> GoToSettingsCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToMainCommand { get; }
-
         public ReactiveCommand<Unit, Unit> StartCameraCommand { get; }
         public ReactiveCommand<Unit, Unit> StopCameraCommand { get; }
 
-        public StreamViewModel(IScreen screen, AuthService authService,
-            NavigationService navigationService, EventsService eventsService,
-            StreamService streamService, CameraCaptureService cameraService)
+        public StreamViewModel(
+            IScreen screen,
+            AuthService authService,
+            NavigationService navigationService,
+            EventsService eventsService,
+            JournalService journalService,
+            StreamService streamService,
+            CameraCaptureService cameraService)
         {
             HostScreen = screen;
             _authService = authService;
             _navigationService = navigationService;
             _eventsService = eventsService;
+            _journalService = journalService;
             _streamService = streamService;
             _cameraService = cameraService;
 
@@ -89,9 +95,7 @@ namespace Client.ViewModels
             GoToMainCommand = ReactiveCommand.CreateFromTask(GoToMainAsync);
             StartCameraCommand = ReactiveCommand.CreateFromTask(StartCameraAsync);
             StopCameraCommand = ReactiveCommand.CreateFromTask(StopCameraAsync);
-
         }
-
 
         public async Task InitializeAsync()
         {
@@ -103,18 +107,43 @@ namespace Client.ViewModels
         }
 
         private async Task LoadData()
-        { }
+        {
+            try
+            {
+                var status = await _streamService.GetStatusAsync();
+                if (status != null)
+                {
+                    ServerStatus = "Успешное подключение к серверу";
+                    ServerStatusColor = "Green";
+                }
+            }
+            catch
+            {
+                ServerStatus = "Сервер недоступен";
+                ServerStatusColor = "Red";
+            }
+        }
+
         private async Task StartCameraAsync()
         {
-            if (_isCapturing) return;
+            if (_isCapturing)
+                return;
 
             _isCapturing = true;
-            await _streamService.StartCameraAsync("0", onFrameReceived: OnStreamFrame); // старт детектов
 
-            _cameraService.OnFrameCaptured += OnFrameCaprured;
-            await _cameraService.StartCaptureAsync(0); // старт визуала
+            _ = _journalService.RecordAsync(
+                eventCode: "stream_started",
+                message: "Запущен анализ потока с камеры",
+                source: "stream",
+                action: "start",
+                level: "info");
+
+            _cameraService.OnFrameCaptured += OnFrameCaptured;
+            await _streamService.StartCameraAsync("0", OnStreamFrame);
+            await _cameraService.StartCaptureAsync(0);
         }
-        private void OnStreamFrame(StreamFrame frame) // тут надо создавать ивент по полученному кадру с детектами. Его надо в список всех ивентов для журнала
+
+        private void OnStreamFrame(StreamFrame frame)
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
@@ -128,65 +157,78 @@ namespace Client.ViewModels
                         Timestamp = DateTime.Now,
                         GranuleCount = frame.Granule_count,
                         IntensityPerSec = frame.Intensity_per_sec,
+                        IntensityPerMin = (float)frame.Intensity_per_min,
                         ThresholdExceeded = frame.Threshold_exceeded,
                         IsOutOfSchedule = frame.Out_of_schedule,
                         StreamFrame = frame
                     });
                 }
             });
+
+            if (frame.Threshold_exceeded || frame.Out_of_schedule)
+            {
+                _ = _journalService.RecordAsync(
+                    eventCode: frame.Threshold_exceeded ? "threshold_exceeded" : "out_of_schedule",
+                    message: $"Обнаружено событие: гранул {frame.Granule_count}, интенсивность {frame.Intensity_per_sec:F1}/сек",
+                    source: "detection",
+                    action: "frame_analysis",
+                    level: "warning",
+                    entityType: "stream_frame",
+                    detailsJson: $"{{\"frameIndex\":{frame.Frame_index},\"granuleCount\":{frame.Granule_count},\"intensityPerSec\":{frame.Intensity_per_sec.ToString(System.Globalization.CultureInfo.InvariantCulture)},\"intensityPerMin\":{frame.Intensity_per_min.ToString(System.Globalization.CultureInfo.InvariantCulture)},\"thresholdExceeded\":{frame.Threshold_exceeded.ToString().ToLowerInvariant()},\"outOfSchedule\":{frame.Out_of_schedule.ToString().ToLowerInvariant()}}}");
+            }
         }
-        private void UpdateBoundingBoxes(StreamFrame frame) // они передают коорды, а тут редакт для вывода на экран
+
+        private void UpdateBoundingBoxes(StreamFrame frame)
         {
-            foreach (DetectionBbox bbox in frame.bboxes)
+            foreach (var bbox in frame.bboxes)
             {
                 bbox.Width = bbox.x2 - bbox.x1;
                 bbox.Height = bbox.y2 - bbox.y1;
             }
-            CurrentFrameInfo = frame;
 
+            CurrentFrameInfo = frame;
         }
-        private void OnFrameCaprured(Mat frame)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                {
-                    // Конвертируем Mat в Bitmap
-                    using var stream = new MemoryStream();
-                    var imageBytes = frame.ToBytes(".jpg");
-                    var bitmap = new Bitmap(new MemoryStream(imageBytes));
-                    CurrentFrame = bitmap;
-                    frame.Dispose(); // Освобождаем ресурсы
-                });
-        }
-        private void OnDetectionResult(byte[] imageBytes, FeedingEvent feedingEvent)
+
+        private void OnFrameCaptured(Mat frame)
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                Events.Insert(0, feedingEvent); // Добавляем в журнал
-                StatusText = $"Обнаружено гранул: {feedingEvent.GranuleCount}";
-                var bitmap = new Bitmap(new MemoryStream(imageBytes));
-                CurrentFrame = bitmap;
+                using var stream = new MemoryStream();
+                var imageBytes = frame.ToBytes(".jpg");
+                CurrentFrame = new Bitmap(new MemoryStream(imageBytes));
+                frame.Dispose();
             });
         }
+
         private async Task StopCameraAsync()
         {
-            if (!_isCapturing) return;
+            if (!_isCapturing)
+                return;
+
             _isCapturing = false;
 
-            // ✅ Отписываемся по сохранённым ссылкам
-            if (_cameraService != null)
-            {
-                _cameraService.OnFrameCaptured -= OnFrameCaprured;
-                _cameraService.StopCapture();
-                _cameraService.Dispose();
-            }
+            _cameraService.OnFrameCaptured -= OnFrameCaptured;
+            _cameraService.StopCapture();
+            _cameraService.Dispose();
+
+            await _streamService.StopAsync();
+
+            _ = _journalService.RecordAsync(
+                eventCode: "stream_stopped",
+                message: "Остановлен анализ потока с камеры",
+                source: "stream",
+                action: "stop",
+                level: "info");
 
             CurrentFrame = null;
             StatusText = "Поток с камеры остановлен";
         }
+
         private async Task GoToSettingsAsync()
         {
             await _navigationService.NavigateToSettingsAsync();
         }
+
         private async Task GoToMainAsync()
         {
             await _navigationService.NavigateToMainAsync();

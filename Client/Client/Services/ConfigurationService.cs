@@ -27,6 +27,11 @@ namespace Client.Services
             return _configuration["ApiBaseUrl"] ?? "http://localhost:5015";
         }
 
+        public string GetTheme()
+        {
+            return _configuration["Theme"] ?? "Dark";
+        }
+
         public void SaveApiUrl(string url)
         {
             if (File.Exists(ConfigFileName))
@@ -43,7 +48,7 @@ namespace Client.Services
             UrlServerPath = url;
             UrlChanged?.Invoke(url);
         }
-        public void SaveSettings(float confidence, float iou)
+        public void SaveSettings(float confidence, float iou, string theme)
         {
             if (File.Exists(ConfigFileName))
             {
@@ -68,6 +73,8 @@ namespace Client.Services
                         ["Iou"] = iou.ToString(CultureInfo.InvariantCulture)
                     };
                 }
+
+                config["Theme"] = theme;
 
                 var newJson = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(ConfigFileName, newJson);

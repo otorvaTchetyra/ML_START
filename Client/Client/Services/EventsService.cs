@@ -21,7 +21,7 @@ namespace Client.Services
 
         public async Task AddCommentAsync(int eventId, string comment)
         {
-            await _apiClient.PostAsync<object>($"/events/{eventId}/comment",
+            await _apiClient.PatchAsync<object>($"/events/{eventId}/comment",
                 new { comment });
         }
     }

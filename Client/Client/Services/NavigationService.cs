@@ -8,7 +8,6 @@ namespace Client.Services;
 public sealed class NavigationService
 {
     private RoutableViewModelsFactory _routableViewModelsFactory;
-    private readonly IServiceProvider _serviceProvider;
     private IScreen _screen;
 
     public NavigationService(RoutableViewModelsFactory routableViewModelsFactory, IScreen screen)

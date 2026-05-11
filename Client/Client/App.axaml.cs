@@ -4,23 +4,29 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using Avalonia.Styling;
+using Client.Data;
 using Client.Services;
 using Client.ViewModels;
 using Client.Views;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using ReactiveUI;
 using Splat;
 using System;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Client
 {
     public partial class App : Application
     {
         public static Window? MainWindow { get; private set; }
-        private IServiceProvider _serviceProvider;
+        private IServiceProvider _serviceProvider = null!;
 
         public override void Initialize()
         {
@@ -53,7 +59,27 @@ namespace Client
             try
             {
                 var navigationService = _serviceProvider?.GetRequiredService<NavigationService>();
-                _ = navigationService?.NavigateToMainAsync();
+                _ = navigationService?.NavigateToLoginAsync();
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var journalService = _serviceProvider?.GetRequiredService<JournalService>();
+                        if (journalService != null)
+                        {
+                            await journalService.RecordAsync(
+                                eventCode: "app_start",
+                                message: "Приложение клиента запущено",
+                                source: "system",
+                                action: "startup",
+                                level: "info");
+                        }
+                    }
+                    catch
+                    {
+                        // Журнал не должен мешать запуску приложения.
+                    }
+                });
             }
             catch
             {
@@ -65,6 +91,8 @@ namespace Client
             IConfiguration configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
                 .Build();
+
+            ApplyTheme(configuration["Theme"] ?? "Dark");
 
             var services = new ServiceCollection();
 
@@ -78,7 +106,7 @@ namespace Client
                 return new HttpClient
                 {
                     BaseAddress = new Uri(configService.GetApiUrl()),
-                    Timeout = TimeSpan.FromSeconds(30)
+                    Timeout = Timeout.InfiniteTimeSpan
                 };
             });
 
@@ -88,6 +116,13 @@ namespace Client
                 var httpClient = provider.GetRequiredService<HttpClient>();
                 return new ApiClient(httpClient);
             });
+
+            var journalConnectionString =
+                configuration["JournalDatabase:ConnectionString"]
+                ?? "server=localhost;port=3307;database=dronevision_client;user=root;password=rootpassword";
+
+            services.AddDbContext<JournalDbContext>(options =>
+                options.UseMySql(journalConnectionString, new MySqlServerVersion(new Version(8, 0, 36))));
 
             services.AddScoped<AuthService>();
             services.AddScoped<NavigationService>();
@@ -111,12 +146,8 @@ namespace Client
             services.AddScoped<StreamService>();
             services.AddScoped<StatsService>();
             services.AddScoped<LogsService>();
+            services.AddScoped<JournalService>();
             services.AddScoped<CameraCaptureService>();
-
-            services.AddScoped<EventsService>();
-            services.AddScoped<StreamService>();
-            services.AddScoped<StatsService>();
-            services.AddScoped<LogsService>();
 
             return services.BuildServiceProvider();
         }
@@ -128,6 +159,25 @@ namespace Client
             Locator.CurrentMutable.Register<IViewFor<SettingsViewModel>>(() => new SettingsView());
             Locator.CurrentMutable.Register<IViewFor<MainViewModel>>(() => new MainView());
             Locator.CurrentMutable.Register<IViewFor<StreamViewModel>>(() => new StreamView());
+        }
+
+        public static void ApplyTheme(string theme)
+        {
+            if (Application.Current is not App app)
+                return;
+
+            var isLight = string.Equals(theme, "Light", StringComparison.OrdinalIgnoreCase);
+            app.RequestedThemeVariant = isLight ? ThemeVariant.Light : ThemeVariant.Dark;
+
+            app.Resources["PageBackgroundBrush"] = new SolidColorBrush(Color.Parse(isLight ? "#F3F6FA" : "#090B10"));
+            app.Resources["PanelBrush"] = new SolidColorBrush(Color.Parse(isLight ? "#FFFFFF" : "#11161D"));
+            app.Resources["FieldBrush"] = new SolidColorBrush(Color.Parse(isLight ? "#F7F9FC" : "#0D1117"));
+            app.Resources["BorderBrush"] = new SolidColorBrush(Color.Parse(isLight ? "#D4DEEA" : "#243041"));
+            app.Resources["AccentBrush"] = new SolidColorBrush(Color.Parse("#2AA7FF"));
+            app.Resources["TextPrimaryBrush"] = new SolidColorBrush(Color.Parse(isLight ? "#15202B" : "#F5F7FA"));
+            app.Resources["TextSecondaryBrush"] = new SolidColorBrush(Color.Parse(isLight ? "#5D6C7B" : "#9AA7B5"));
+            app.Resources["MutedBrush"] = new SolidColorBrush(Color.Parse(isLight ? "#8090A0" : "#6F7A86"));
+            app.Resources["DangerBrush"] = new SolidColorBrush(Color.Parse("#FF6B6B"));
         }
     }
 }
