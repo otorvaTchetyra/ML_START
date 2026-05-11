@@ -5,218 +5,264 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             d:DesignWidth="1200"
-             d:DesignHeight="700"
+             d:DesignWidth="1280"
+             d:DesignHeight="760"
              x:Class="Client.MainView"
              x:DataType="vm:MainViewModel">
 
-    <DockPanel>
+    <UserControl.Styles>
+        <Style Selector="Border.panel">
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="22"/>
+            <Setter Property="Padding" Value="18"/>
+        </Style>
 
-         <!-- Верхнее меню -->
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="Настройки"
-                      Command="{Binding GoToSettingsCommand}" />
-            <MenuItem Header="Стрим"
-                      Command="{Binding GoToStreamCommand}" />
-        </Menu>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
 
-        <!-- Статус бар -->
-        <Border DockPanel.Dock="Bottom"
-                Background="#1E1E1E"
-                Padding="10,5">
-            <StackPanel Orientation="Horizontal" Spacing="20">
-                <TextBlock Text="{Binding StatusText}"
-                           Foreground="Gray"
-                           FontSize="12"/>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="{DynamicResource FieldBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="CornerRadius" Value="12"/>
+        </Style>
 
-                <TextBlock Text="{Binding ServerStatus}"
-                           Foreground="{Binding ServerStatusColor}"
-                           FontSize="12"/>
-            </StackPanel>
-        </Border>
+        <Style Selector="Button.player-control">
+            <Setter Property="Background" Value="#8A8A8A"/>
+            <Setter Property="BorderBrush" Value="#777777"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Width" Value="52"/>
+            <Setter Property="Height" Value="52"/>
+            <Setter Property="MinWidth" Value="52"/>
+            <Setter Property="MinHeight" Value="52"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
 
-        <!-- Основной контент -->
-        <Grid ColumnDefinitions="*,400" Margin="10">
+        <Style Selector="TextBox.comment-box">
+            <Setter Property="Background" Value="{DynamicResource FieldBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="14,12"/>
+        </Style>
+    </UserControl.Styles>
 
-         <!-- Левая часть -->
-        <Grid Grid.Column="0"
-              RowDefinitions="Auto,*,Auto"
-              Margin="0,0,10,0">
-
-            <TextBlock Grid.Row="0"
-                       Text="Видеопоток"
-                       FontSize="16"
+    <Border Background="{DynamicResource PageBackgroundBrush}">
+        <Grid Margin="24" RowDefinitions="Auto,Auto,*">
+            <TextBlock Text="Панель мониторинга"
+                       FontSize="30"
                        FontWeight="Bold"
-                       Margin="0,0,0,8"/>
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Margin="0,0,0,18"/>
 
-            <!-- Видео + кнопки управления = всё в одном Grid -->
-            <Grid Grid.Row="1"
-                  Background="Black"
-                  VerticalAlignment="Stretch"
-                  HorizontalAlignment="Stretch">
-        
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>     <!-- видео -->
-                    <RowDefinition Height="Auto"/>  <!-- кнопки плеера -->
-                    <RowDefinition Height="Auto"/>  <!-- кнопки анализа -->
-                </Grid.RowDefinitions>
-        
-                <!-- Видео (растягивается на всю доступную высоту) -->
-                <media:VideoView x:Name="VideoPlayer"
-                                 Grid.Row="0"
-                                 Source="{Binding VideoPath}"
-                                 HorizontalAlignment="Stretch"
-                                 VerticalAlignment="Stretch"/>
-                
-                <!-- Слой для детекций поверх видео -->
-                 <ItemsControl ItemsSource="{Binding CurrentFrameInfo.bboxes}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <Canvas />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Rectangle Stroke="Red" StrokeThickness="2" Fill="Transparent"
-                                       Width="{Binding Width}" Height="{Binding Height}"
-                                       Canvas.Left="{Binding x1}" Canvas.Top="{Binding y1}" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-        
-                <!-- Кнопки управления плеером (внизу, справа) -->
-                <StackPanel Grid.Row="1"
-                            Orientation="Horizontal"
-                            HorizontalAlignment="Right"
-                            Spacing="10"
-                            Margin="0,10">
-                    <Button Click="Play_Click" 
-                            Content="▶"
-                            Background="Gray"
-                            Foreground="White"
-                            Width="40" Height="40"/>
-                    <Button Click="Pause_Click" 
-                            Content="⏸"
-                            Background="Gray"
-                            Foreground="White"
-                            Width="40" Height="40"/>
-                    <Button Click="Stop_Click" 
-                            Content="⏹"
-                            Background="Gray"
-                            Foreground="White"
-                            Width="40" Height="40"/>
-                </StackPanel>
+            <Border Grid.Row="1"
+                    Classes="panel"
+                    Padding="14,10"
+                    Margin="0,0,0,18">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8"
+                                VerticalAlignment="Center">
+                        <Ellipse Width="10"
+                                 Height="10"
+                                 Fill="{Binding ServerStatusColor}"
+                                 VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding ServerStatus}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                Spacing="10">
+                        <Button Classes="secondary"
+                                Content="Настройки"
+                                Command="{Binding GoToSettingsCommand}"/>
+                        <Button Classes="secondary"
+                                Content="Стрим"
+                                Command="{Binding GoToStreamCommand}"/>
+                        <Button Classes="secondary"
+                                Content="Выйти"
+                                Command="{Binding LogoutCommand}"/>
+                    </StackPanel>
                 </Grid>
-                <!-- Кнопки управления анализом -->
-                <StackPanel Grid.Row="2"
-                            Orientation="Horizontal"
-                            Spacing="10"
-                            Margin="0,10">
-                    <Button Content="Открыть видео"
-                            Command="{Binding OpenVideoCommand}"/>
-                    <Button Content="Остановить анализ"
-                            Command="{Binding StopStreamCommand}"/>
-                    <Button Content="Обновить данные"
-                            Command="{Binding RefreshCommand}"/>
-                </StackPanel>
-        
-    
-    
-        </Grid>
+            </Border>
 
-            <!-- Правая часть -->
-            <Grid Grid.Column="1"
-                  RowDefinitions="Auto,*,Auto,Auto">
+            <Grid Grid.Row="2" ColumnDefinitions="1.25*,0.95*" ColumnSpacing="18">
+                <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" RowSpacing="14">
+                    <Border Classes="panel" Grid.Row="0">
+                        <TextBlock Text="Видеопоток"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </Border>
 
-                <!-- Заголовок -->
-                <TextBlock Grid.Row="0"
-                           Text="Журнал событий кормления"
-                           FontSize="14"
-                           FontWeight="Bold"
-                           Margin="0,0,0,8"/>
+                    <Border Classes="panel" Grid.Row="1" Padding="0" ClipToBounds="True">
+                        <Grid Margin="18">
+                            <Border Background="{DynamicResource FieldBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="18"
+                                    ClipToBounds="True">
+                                <Grid RowDefinitions="*,Auto">
+                                    <Grid Grid.Row="0"
+                                          Background="Black"
+                                          ClipToBounds="True">
+                                        <media:VideoView x:Name="VideoPlayer"
+                                                         Source="{Binding VideoPath}"
+                                                         IsVisible="{Binding IsRawVideoVisible}"
+                                                         HorizontalAlignment="Stretch"
+                                                         VerticalAlignment="Stretch"/>
 
-                <!-- Список -->
-                <ScrollViewer Grid.Row="1"
-                              Margin="0,0,0,10">
+                                        <Image Source="{Binding AnnotatedFrame}"
+                                               IsVisible="{Binding IsAnnotatedFrameVisible}"
+                                               Stretch="Uniform"
+                                               HorizontalAlignment="Stretch"
+                                               VerticalAlignment="Stretch"/>
+                                    </Grid>
 
-                    <ListBox ItemsSource="{Binding Events}"
-                             SelectedItem="{Binding SelectedEvent}">
-
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#1E1E2E"
-                                        CornerRadius="6"
-                                        Margin="0,4"
-                                        Padding="10">
-
-                                    <StackPanel Spacing="4">
-
-                                        <!-- Дата + статус -->
-                                        <StackPanel Orientation="Horizontal"
-                                                    Spacing="10">
-
-                                            <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd.MM.yyyy HH:mm:ss}}"
-                                                       FontSize="11"
-                                                       Foreground="#888"/>
-
-                                            <Border Background="{Binding StatusColor}"
-                                                    CornerRadius="3"
-                                                    Padding="4,1">
-
-                                                <TextBlock Text="{Binding IsOutOfSchedule, StringFormat={}Вне расписания}"
-                                                           FontSize="10"/>
-                                            </Border>
+                                    <Border Grid.Row="1"
+                                            Background="{DynamicResource FieldBrush}"
+                                            Padding="0,10,0,10">
+                                        <StackPanel HorizontalAlignment="Right"
+                                                    Orientation="Horizontal"
+                                                    Spacing="10"
+                                                    Margin="0,0,12,0">
+                                            <Button Classes="player-control"
+                                                    Content="▶"
+                                                    Click="Play_Click"/>
+                                            <Button Classes="player-control"
+                                                    Content="⏸"
+                                                    Click="Pause_Click"/>
+                                            <Button Classes="player-control"
+                                                    Content="⏹"
+                                                    Click="Stop_Click"/>
                                         </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
 
-                                        <!-- Данные -->
-                                        <StackPanel Orientation="Horizontal"
-                                                    Spacing="15">
-
-                                            <TextBlock Text="{Binding GranuleCount, StringFormat=Гранул: {0}}"
-                                                       FontSize="12"/>
-
-                                            <TextBlock Text="{Binding IntensityPerSec, StringFormat=Интенсивность: {0:F1}/сек}"
-                                                       FontSize="12"/>
-                                        </StackPanel>
-
-                                        <!-- Комментарий -->
-                                        <TextBlock Text="{Binding Comment}"
-                                                   FontSize="11"
-                                                   Foreground="Gray"
-                                                   IsVisible="{Binding HasComment}"/>
-
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-
-                    </ListBox>
-                </ScrollViewer>
-
-                <!-- Комментарий -->
-                <TextBlock Grid.Row="2"
-                           Text="Добавить комментарий"
-                           FontSize="14"
-                           FontWeight="Bold"
-                           Margin="0,10,0,8"/>
-
-                <Grid Grid.Row="3"
-                      RowDefinitions="Auto,Auto">
-
-                    <TextBox Grid.Row="0"
-                             Text="{Binding CommentText}"
-                             Watermark="Введите комментарий..."
-                             AcceptsReturn="True"
-                             Margin="0,0,0,8"/>
-
-                    <Button Grid.Row="1"
-                            Content="Добавить комментарий"
-                            Command="{Binding AddCommentCommand}"
-                            IsEnabled="{Binding SelectedEvent, Converter={x:Static ObjectConverters.IsNotNull}}"
-                            HorizontalAlignment="Left"/>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10">
+                        <Button Classes="primary"
+                                Content="Открыть видео"
+                                Command="{Binding OpenVideoCommand}"/>
+                        <Button Classes="secondary"
+                                Content="Остановить анализ"
+                                Command="{Binding StopStreamCommand}"/>
+                    </StackPanel>
                 </Grid>
 
+                <Grid Grid.Column="1"
+                      RowDefinitions="Auto,*,Auto,*">
+                    <TextBlock Grid.Row="0"
+                               Text="Журнал событий"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               Margin="0,0,0,8"/>
+
+                    <Border Grid.Row="1"
+                            Classes="panel"
+                            Padding="10"
+                            Margin="0,0,0,10">
+                        <ScrollViewer>
+                            <ListBox ItemsSource="{Binding JournalEntries}"
+                                     SelectedItem="{Binding SelectedJournalEntry}"
+                                     Background="Transparent"
+                                     BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource FieldBrush}"
+                                                CornerRadius="10"
+                                                Margin="0,4"
+                                                Padding="10">
+                                            <StackPanel Spacing="4">
+                                                <StackPanel Orientation="Horizontal"
+                                                            Spacing="10">
+                                                    <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd.MM.yyyy HH:mm:ss}}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource MutedBrush}"/>
+
+                                                    <Border Background="{DynamicResource AccentBrush}"
+                                                            CornerRadius="999"
+                                                            Padding="8,2">
+                                                        <TextBlock Text="{Binding Level}"
+                                                                   FontSize="10"
+                                                                   Foreground="White"/>
+                                                    </Border>
+                                                </StackPanel>
+
+                                                <TextBlock Text="{Binding Message}"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                           TextWrapping="Wrap"/>
+
+                                                <TextBlock Text="{Binding Category, StringFormat={}Категория: {0}}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           TextWrapping="Wrap"/>
+
+                                                <TextBlock Text="{Binding Source, StringFormat={}Источник: {0}}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           TextWrapping="Wrap"/>
+
+                                                <TextBlock Text="{Binding Comment, StringFormat={}Комментарий: {0}}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           IsVisible="{Binding HasComment}"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </ScrollViewer>
+                    </Border>
+
+                    <TextBlock Grid.Row="2"
+                               Text="Комментарий к записи"
+                               FontSize="14"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               Margin="0,0,0,8"/>
+
+                    <Border Grid.Row="3"
+                            Classes="panel">
+                        <Grid RowDefinitions="*,Auto"
+                              RowSpacing="12">
+                            <TextBox Grid.Row="0"
+                                     Classes="comment-box"
+                                     Text="{Binding CommentText}"
+                                     Watermark="Введите комментарий..."
+                                     AcceptsReturn="True"/>
+
+                            <Button Grid.Row="1"
+                                    Classes="primary"
+                                    Content="Добавить комментарий"
+                                    Command="{Binding AddCommentCommand}"
+                                    IsEnabled="{Binding SelectedJournalEntry, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                        </Grid>
+                    </Border>
+                </Grid>
             </Grid>
         </Grid>
-    </DockPanel>
+    </Border>
 </UserControl>

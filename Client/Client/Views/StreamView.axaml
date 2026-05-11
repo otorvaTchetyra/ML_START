@@ -4,12 +4,12 @@
              xmlns:media="using:Iciclecreek.Avalonia.Controls.Media"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d"
+             d:DesignWidth="1200"
+             d:DesignHeight="700"
              x:Class="Client.StreamView"
              x:DataType="vm:StreamViewModel">
-      <DockPanel>
-
-         <!-- Верхнее меню -->
+    <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Настройки"
                       Command="{Binding GoToSettingsCommand}" />
@@ -17,7 +17,6 @@
                       Command="{Binding GoToMainCommand}" />
         </Menu>
 
-        <!-- Статус бар -->
         <Border DockPanel.Dock="Bottom"
                 Background="#1E1E1E"
                 Padding="10,5">
@@ -32,98 +31,83 @@
             </StackPanel>
         </Border>
 
-        <!-- Основной контент -->
         <Grid ColumnDefinitions="*,400" Margin="10">
+            <Grid Grid.Column="0"
+                  RowDefinitions="Auto,*,Auto"
+                  Margin="0,0,10,0">
+                <TextBlock Grid.Row="0"
+                           Text="Видеопоток"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           Margin="0,0,0,8"/>
 
-         <!-- Левая часть -->
-        <Grid Grid.Column="0"
-              RowDefinitions="Auto,*,Auto"
-              Margin="0,0,10,0">
+                <Grid Grid.Row="1"
+                      Background="Black"
+                      VerticalAlignment="Stretch"
+                      HorizontalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0"
-                       Text="Видеопоток"
-                       FontSize="16"
-                       FontWeight="Bold"
-                       Margin="0,0,0,8"/>
-            
-            <!-- Видео + кнопки управления = всё в одном Grid -->
-            <Grid Grid.Row="1"
-                  Background="Black"
-                  VerticalAlignment="Stretch"
-                  HorizontalAlignment="Stretch">
-        
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>     <!-- видео -->
-                    <RowDefinition Height="Auto"/>  <!-- кнопки плеера -->
-                    <RowDefinition Height="Auto"/>  <!-- кнопки анализа -->
-                </Grid.RowDefinitions>
-        
-                <!-- Видео (растягивается на всю доступную высоту) -->
-                <Image Grid.Row="0" Source="{Binding CurrentFrame}" 
-                        HorizontalAlignment="Stretch"
-                        VerticalAlignment="Stretch"/>
-                
-                <!-- Слой для детекций поверх видео -->
-                <ItemsControl ItemsSource="{Binding CurrentFrameInfo.bboxes}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <Canvas />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Rectangle Stroke="Red" StrokeThickness="2" Fill="Transparent"
-                                       Width="{Binding Width}" Height="{Binding Height}"
-                                       Canvas.Left="{Binding x1}" Canvas.Top="{Binding y1}" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    <Grid Grid.Row="0">
+                        <Image Source="{Binding CurrentFrame}"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"/>
+
+                        <ItemsControl ItemsSource="{Binding CurrentFrameInfo.bboxes}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas Background="Transparent" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Rectangle Stroke="Red"
+                                               StrokeThickness="2"
+                                               Fill="Transparent"
+                                               Width="{Binding Width}"
+                                               Height="{Binding Height}"
+                                               Canvas.Left="{Binding x1}"
+                                               Canvas.Top="{Binding y1}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+
+                    <StackPanel Grid.Row="1"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                Spacing="10"
+                                Margin="0,10">
+                        <Button Content="Включить стрим"
+                                Command="{Binding StartCameraCommand}"/>
+                        <Button Content="Остановить стрим"
+                                Command="{Binding StopCameraCommand}"/>
+                    </StackPanel>
                 </Grid>
-                <!-- Кнопки управления анализом -->
-                <StackPanel Grid.Row="2"
-                            Orientation="Horizontal"
-                            Spacing="10"
-                            Margin="0,10">
-                    <Button Content="Включить стрим"
-                            Command="{Binding StartCameraCommand}"/>
-                    <Button Content="Остановить стрим"
-                            Command="{Binding StopCameraCommand}"/>
-                </StackPanel>
-        
-    
-    
-        </Grid>
+            </Grid>
 
-            <!-- Правая часть -->
             <Grid Grid.Column="1"
                   RowDefinitions="Auto,*,Auto,Auto">
-
-                <!-- Заголовок -->
                 <TextBlock Grid.Row="0"
                            Text="Журнал событий кормления"
                            FontSize="14"
                            FontWeight="Bold"
                            Margin="0,0,0,8"/>
 
-                <!-- Список -->
                 <ScrollViewer Grid.Row="1"
                               Margin="0,0,0,10">
-
                     <ListBox ItemsSource="{Binding Events}">
-
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="#1E1E2E"
                                         CornerRadius="6"
                                         Margin="0,4"
                                         Padding="10">
-
                                     <StackPanel Spacing="4">
-
-                                        <!-- Дата + статус -->
                                         <StackPanel Orientation="Horizontal"
                                                     Spacing="10">
-
                                             <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd.MM.yyyy HH:mm:ss}}"
                                                        FontSize="11"
                                                        Foreground="#888"/>
@@ -131,16 +115,13 @@
                                             <Border Background="{Binding StatusColor}"
                                                     CornerRadius="3"
                                                     Padding="4,1">
-
                                                 <TextBlock Text="{Binding IsOutOfSchedule, StringFormat={}Вне расписания}"
                                                            FontSize="10"/>
                                             </Border>
                                         </StackPanel>
 
-                                        <!-- Данные -->
                                         <StackPanel Orientation="Horizontal"
                                                     Spacing="15">
-
                                             <TextBlock Text="{Binding GranuleCount, StringFormat=Гранул: {0}}"
                                                        FontSize="12"/>
 
@@ -148,20 +129,16 @@
                                                        FontSize="12"/>
                                         </StackPanel>
 
-                                        <!-- Комментарий -->
                                         <TextBlock Text="{Binding Comment}"
                                                    FontSize="11"
                                                    Foreground="Gray"
                                                    IsVisible="{Binding HasComment}"/>
-
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
-
                     </ListBox>
                 </ScrollViewer>
-
             </Grid>
         </Grid>
     </DockPanel>

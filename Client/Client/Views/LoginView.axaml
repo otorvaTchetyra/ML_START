@@ -3,60 +3,115 @@
              xmlns:vm="using:Client.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d"
+             d:DesignWidth="900"
+             d:DesignHeight="620"
              x:Class="Client.LoginView"
              x:DataType="vm:LoginViewModel">
-  <Grid RowDefinitions="Auto,*,Auto" Margin="20">
-        
-        <!-- Заголовок -->
-        <TextBlock Grid.Row="0" 
-                   Text="Авторизация"
-                   FontSize="20"
-                   FontWeight="Bold"
-                   HorizontalAlignment="Center"
-                   Margin="0,0,0,20"/>
-        
-        <!-- Поля ввода -->
-        <StackPanel Grid.Row="1" Spacing="12">
-            
-            <!-- Email -->
-            <TextBox Watermark="Email" 
-                     Text="{Binding Email}"
-                     Margin="0,0,0,4"/>
-            
-            <!-- Пароль -->
-            <TextBox Watermark="Пароль"
-                     Text="{Binding Password}"
-                     PasswordChar="●"
-                     Margin="0,0,0,12"/>
-            
-            <!-- Ошибка -->
-            <TextBlock Text="{Binding ErrorMessage}"
-                       Foreground="Red"
-                       FontSize="12"
-                       IsVisible="{Binding !IsLoading}"
-                       TextWrapping="Wrap"/>
-            
-            <!-- Кнопка входа -->
-            <Button Content="Войти"
-                    Command="{Binding LoginCommand}"
-                    IsEnabled="{Binding !IsLoading}"
-                    HorizontalAlignment="Stretch"
-                    Padding="10"/>
-        </StackPanel>
-        
-        <!-- Ссылка на регистрацию -->
-        <StackPanel Grid.Row="2" 
-                    Orientation="Horizontal"
+
+    <UserControl.Styles>
+        <Style Selector="TextBox.auth-input">
+            <Setter Property="Background" Value="{DynamicResource FieldBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="MinHeight" Value="48"/>
+        </Style>
+
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="{DynamicResource PageBackgroundBrush}">
+        <Grid>
+            <Border MaxWidth="420"
                     HorizontalAlignment="Center"
-                    Spacing="5"
-                    Margin="0,15,0,0">
-            <TextBlock Text="Нет аккаунта?" Foreground="Gray"/>
-            <Button Content="Зарегистрироваться"
-                    Command="{Binding GoToRegisterCommand}"
-                    Classes="link"
-                    Padding="0"/>
-        </StackPanel>
-        
-    </Grid>
+                    VerticalAlignment="Center"
+                    CornerRadius="28"
+                    Padding="32"
+                    Background="{DynamicResource PanelBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Авторизация"
+                                   FontSize="28"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Войдите, чтобы продолжить работу с системой мониторинга."
+                                   FontSize="14"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Margin="0,28,0,0" Spacing="8">
+                        <TextBlock Text="Логин"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="13"/>
+                        <TextBox Classes="auth-input"
+                                 Watermark="Введите логин"
+                                 Text="{Binding Email}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Margin="0,18,0,0" Spacing="8">
+                        <TextBlock Text="Пароль"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="13"/>
+                        <TextBox Classes="auth-input"
+                                 Watermark="Введите пароль"
+                                 Text="{Binding Password}"
+                                 PasswordChar="*"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="3"
+                            Margin="0,18,0,0"
+                            Background="#2A1316"
+                            BorderBrush="#5A252B"
+                            BorderThickness="1"
+                            CornerRadius="12"
+                            Padding="12,10"
+                            IsVisible="{Binding HasError}">
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   Foreground="{DynamicResource DangerBrush}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Button Grid.Row="4"
+                            Classes="primary"
+                            Margin="0,22,0,0"
+                            Content="Войти в систему"
+                            Command="{Binding LoginCommand}"
+                            IsEnabled="{Binding !IsLoading}"/>
+
+                    <StackPanel Grid.Row="5"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                Spacing="6"
+                                Margin="0,18,0,0">
+                        <TextBlock Text="Нет аккаунта?"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <Button Classes="ghost"
+                                Content="Зарегистрироваться"
+                                Command="{Binding GoToRegisterCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
 </UserControl>
