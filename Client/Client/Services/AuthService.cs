@@ -7,6 +7,7 @@ namespace Client.Services
     {
         private readonly IApiClient _apiClient;
         private string? _token;
+        private ApiUser? _currentUser;
 
         public AuthService(IApiClient apiClient)
         {
@@ -14,6 +15,8 @@ namespace Client.Services
         }
 
         public bool IsAuthenticated => _token != null;
+        public ApiUser? CurrentUser => _currentUser;
+        public bool IsAdmin => string.Equals(_currentUser?.Role, "admin", System.StringComparison.OrdinalIgnoreCase);
 
         public async Task<bool> LoginAsync(string username, string password)
         {
@@ -28,6 +31,7 @@ namespace Client.Services
                 {
                     _token = response!.AccessToken;
                     _apiClient.SetAuthToken(_token);
+                    _currentUser = await _apiClient.GetAsync<ApiUser>("/auth/me");
                     return true;
                 }
                 return false;
@@ -41,6 +45,7 @@ namespace Client.Services
         public void Logout()
         {
             _token = null;
+            _currentUser = null;
             _apiClient.SetAuthToken(null);
         }
     }

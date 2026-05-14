@@ -121,7 +121,7 @@ namespace Client
                 configuration["JournalDatabase:ConnectionString"]
                 ?? "server=localhost;port=3307;database=dronevision_client;user=root;password=rootpassword";
 
-            services.AddDbContext<JournalDbContext>(options =>
+            services.AddDbContextFactory<JournalDbContext>(options =>
                 options.UseMySql(journalConnectionString, new MySqlServerVersion(new Version(8, 0, 36))));
 
             services.AddScoped<AuthService>();
@@ -136,6 +136,9 @@ namespace Client
             services.AddTransient<RegisterViewModel>();
             services.AddTransient<SettingsViewModel>();
             services.AddTransient<StreamViewModel>();
+            services.AddTransient<AdminHomeViewModel>();
+            services.AddTransient<AdminUsersViewModel>();
+            services.AddTransient<AdminJournalViewModel>();
 
             services.AddScoped<IHealthService, HealthService>();
 
@@ -146,6 +149,7 @@ namespace Client
             services.AddScoped<StreamService>();
             services.AddScoped<StatsService>();
             services.AddScoped<LogsService>();
+            services.AddScoped<UsersService>();
             services.AddScoped<JournalService>();
             services.AddScoped<CameraCaptureService>();
 
@@ -159,6 +163,9 @@ namespace Client
             Locator.CurrentMutable.Register<IViewFor<SettingsViewModel>>(() => new SettingsView());
             Locator.CurrentMutable.Register<IViewFor<MainViewModel>>(() => new MainView());
             Locator.CurrentMutable.Register<IViewFor<StreamViewModel>>(() => new StreamView());
+            Locator.CurrentMutable.Register<IViewFor<AdminHomeViewModel>>(() => new AdminHomeView());
+            Locator.CurrentMutable.Register<IViewFor<AdminUsersViewModel>>(() => new AdminUsersView());
+            Locator.CurrentMutable.Register<IViewFor<AdminJournalViewModel>>(() => new AdminJournalView());
         }
 
         public static void ApplyTheme(string theme)

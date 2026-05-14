@@ -17,6 +17,7 @@ namespace Client.ViewModels
         private readonly NavigationService _navigationService;
         private readonly JournalService _journalService;
         private readonly IApiClient _apiClient;
+        private readonly AuthService _authService;
 
         private bool IsInitialized;
 
@@ -26,7 +27,7 @@ namespace Client.ViewModels
         private string _urlServerPath = string.Empty;
         private string _connectionStatus = string.Empty;
         private bool _isTestingConnection;
-        private float _confidence = 0.5f;
+        private float _confidence = 0.3f;
         private float _iou = 0.45f;
         private string _selectedTheme = "Темная";
         private string _statusMessage = string.Empty;
@@ -93,11 +94,14 @@ namespace Client.ViewModels
             set => this.RaiseAndSetIfChanged(ref _isStatusVisible, value);
         }
 
+        public bool IsAdmin => _authService.IsAdmin;
+
         public ReactiveCommand<Unit, Unit> SaveSettingsCommand { get; }
         public ReactiveCommand<Unit, Unit> TestConnectionCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToMainCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToStreamCommand { get; }
         public ReactiveCommand<Unit, Unit> DropDBCommand { get; }
+        public ReactiveCommand<Unit, Unit> GoToAdminHomeCommand { get; }
 
         public SettingsViewModel(
             IConfigurationService configurationService,
@@ -105,13 +109,15 @@ namespace Client.ViewModels
             IScreen screen,
             IApiClient apiClient,
             NavigationService navigationService,
-            JournalService journalService)
+            JournalService journalService,
+            AuthService authService)
         {
             _configurationService = configurationService;
             _navigationService = navigationService;
             _healthService = healthService;
             _journalService = journalService;
             _apiClient = apiClient;
+            _authService = authService;
             HostScreen = screen;
 
             SaveSettingsCommand = ReactiveCommand.CreateFromTask(SaveSettingsAsync);
@@ -119,6 +125,7 @@ namespace Client.ViewModels
             GoToMainCommand = ReactiveCommand.CreateFromTask(GoToMainAsync);
             GoToStreamCommand = ReactiveCommand.CreateFromTask(GoToStreamAsync);
             DropDBCommand = ReactiveCommand.CreateFromTask(DropDBAsync);
+            GoToAdminHomeCommand = ReactiveCommand.CreateFromTask(() => _navigationService.NavigateToAdminHomeAsync());
         }
 
         private async Task GoToMainAsync()
@@ -152,7 +159,7 @@ namespace Client.ViewModels
 
             try
             {
-                Confidence = float.Parse(config["NeuralNetwork:Confidence"] ?? "0.5", CultureInfo.InvariantCulture);
+                Confidence = float.Parse(config["NeuralNetwork:Confidence"] ?? "0.3", CultureInfo.InvariantCulture);
                 Iou = float.Parse(config["NeuralNetwork:Iou"] ?? "0.45", CultureInfo.InvariantCulture);
                 SelectedTheme = string.Equals(_configurationService.GetTheme(), "Light", StringComparison.OrdinalIgnoreCase)
                     ? "Светлая"
@@ -160,10 +167,12 @@ namespace Client.ViewModels
             }
             catch
             {
-                Confidence = 0.5f;
+                Confidence = 0.3f;
                 Iou = 0.45f;
                 SelectedTheme = "Темная";
             }
+
+            await Task.CompletedTask;
         }
 
         private async Task SaveSettingsAsync()
@@ -192,7 +201,8 @@ namespace Client.ViewModels
                     source: "settings",
                     action: "save",
                     level: "info",
-                    detailsJson: $"{{\"apiUrl\":\"{UrlServerPath}\",\"confidence\":{Confidence.ToString(CultureInfo.InvariantCulture)},\"iou\":{Iou.ToString(CultureInfo.InvariantCulture)},\"theme\":\"{theme}\"}}");
+                    detailsJson: $"{{\"apiUrl\":\"{UrlServerPath}\",\"confidence\":{Confidence.ToString(CultureInfo.InvariantCulture)},\"iou\":{Iou.ToString(CultureInfo.InvariantCulture)},\"theme\":\"{theme}\"}}",
+                    usernameSnapshot: _authService.CurrentUser?.Username);
 
                 StatusMessage = "Настройки успешно сохранены";
                 StatusMessageColor = Brushes.Green;
@@ -228,7 +238,8 @@ namespace Client.ViewModels
                     message: "Проверка связи с сервером завершилась успешно",
                     source: "settings",
                     action: "test_connection",
-                    level: "info");
+                    level: "info",
+                    usernameSnapshot: _authService.CurrentUser?.Username);
 
                 ConnectionStatus = "Сервер доступен";
                 IsTestingConnection = false;
@@ -240,7 +251,8 @@ namespace Client.ViewModels
                     message: "Проверка связи с сервером завершилась ошибкой",
                     source: "settings",
                     action: "test_connection",
-                    level: "warning");
+                    level: "warning",
+                    usernameSnapshot: _authService.CurrentUser?.Username);
 
                 ConnectionStatus = "Сервер не отвечает";
                 IsTestingConnection = false;

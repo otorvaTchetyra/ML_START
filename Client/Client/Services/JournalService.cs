@@ -11,11 +11,11 @@ namespace Client.Services;
 
 public class JournalService
 {
-    private readonly JournalDbContext _dbContext;
+    private readonly IDbContextFactory<JournalDbContext> _dbContextFactory;
 
-    public JournalService(JournalDbContext dbContext)
+    public JournalService(IDbContextFactory<JournalDbContext> dbContextFactory)
     {
-        _dbContext = dbContext;
+        _dbContextFactory = dbContextFactory;
     }
 
     public async Task<List<JournalEntry>> GetEntriesAsync(
@@ -25,13 +25,13 @@ public class JournalService
         string? source = null,
         DateTime? dateFrom = null,
         DateTime? dateTo = null,
-        bool? resolved = null)
+        bool? resolved = null,
+        string? usernameSnapshot = null)
     {
-        try
-        {
-            await JournalDatabaseInitializer.EnsureReadyAsync(_dbContext);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        await JournalDatabaseInitializer.EnsureReadyAsync(dbContext);
 
-            var query = _dbContext.Entries
+        var query = dbContext.Entries
                 .Include(x => x.EventType)
                 .AsNoTracking()
                 .AsQueryable();
@@ -54,15 +54,27 @@ public class JournalService
             if (resolved.HasValue)
                 query = query.Where(x => x.IsResolved == resolved.Value);
 
-            return await query
-                .OrderByDescending(x => x.Timestamp)
-                .Take(limit)
-                .ToListAsync();
-        }
-        catch
-        {
-            return new List<JournalEntry>();
-        }
+            if (!string.IsNullOrWhiteSpace(usernameSnapshot))
+                query = query.Where(x => x.UsernameSnapshot == usernameSnapshot);
+
+        return await query
+            .OrderByDescending(x => x.Timestamp)
+            .Take(limit)
+            .ToListAsync();
+    }
+
+    public async Task<List<string>> GetDistinctJournalUsernamesAsync()
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        await JournalDatabaseInitializer.EnsureReadyAsync(dbContext);
+
+        return await dbContext.Entries
+            .AsNoTracking()
+            .Where(x => x.UsernameSnapshot != null && x.UsernameSnapshot != string.Empty)
+            .Select(x => x.UsernameSnapshot!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
     }
 
     public async Task<JournalEntry> RecordAsync(
@@ -82,11 +94,12 @@ public class JournalService
     {
         try
         {
-            await JournalDatabaseInitializer.EnsureReadyAsync(_dbContext);
+            await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+            await JournalDatabaseInitializer.EnsureReadyAsync(dbContext);
 
-            var eventType = await _dbContext.EventTypes
+            var eventType = await dbContext.EventTypes
                 .FirstOrDefaultAsync(x => x.Code == eventCode)
-                ?? await _dbContext.EventTypes.FirstAsync(x => x.Code == "custom");
+                ?? await dbContext.EventTypes.FirstAsync(x => x.Code == "custom");
 
             var entry = new JournalEntry
             {
@@ -107,8 +120,8 @@ public class JournalService
                 ResolvedAt = isResolved ? DateTime.UtcNow : null
             };
 
-            _dbContext.Entries.Add(entry);
-            await _dbContext.SaveChangesAsync();
+            dbContext.Entries.Add(entry);
+            await dbContext.SaveChangesAsync();
             entry.EventType = eventType;
             return entry;
         }
@@ -170,14 +183,15 @@ public class JournalService
     {
         try
         {
-            await JournalDatabaseInitializer.EnsureReadyAsync(_dbContext);
+            await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+            await JournalDatabaseInitializer.EnsureReadyAsync(dbContext);
 
-            var entry = await _dbContext.Entries.FirstOrDefaultAsync(x => x.Id == entryId);
+            var entry = await dbContext.Entries.FirstOrDefaultAsync(x => x.Id == entryId);
             if (entry == null)
                 return;
 
             entry.Comment = comment;
-            await _dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
         }
         catch
         {
@@ -188,15 +202,16 @@ public class JournalService
     {
         try
         {
-            await JournalDatabaseInitializer.EnsureReadyAsync(_dbContext);
+            await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+            await JournalDatabaseInitializer.EnsureReadyAsync(dbContext);
 
-            var entry = await _dbContext.Entries.FirstOrDefaultAsync(x => x.Id == entryId);
+            var entry = await dbContext.Entries.FirstOrDefaultAsync(x => x.Id == entryId);
             if (entry == null)
                 return;
 
             entry.IsResolved = isResolved;
             entry.ResolvedAt = isResolved ? DateTime.UtcNow : null;
-            await _dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
         }
         catch
         {

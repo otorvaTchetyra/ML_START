@@ -12,7 +12,8 @@
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Настройки"
-                      Command="{Binding GoToSettingsCommand}" />
+                      Command="{Binding GoToSettingsCommand}"
+                      IsVisible="{Binding IsAdmin}" />
             <MenuItem Header="Видео"
                       Command="{Binding GoToMainCommand}" />
         </Menu>

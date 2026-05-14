@@ -1,11 +1,7 @@
-﻿using Avalonia.Platform;
-using Client.Services;
+﻿using Client.Services;
 using ReactiveUI;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reactive;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Client.ViewModels
@@ -26,34 +22,45 @@ namespace Client.ViewModels
             }
         }
 
-        private async Task LoadData()
-        {
-        }
-        private readonly AuthService _authService;
+        private Task LoadData() => Task.CompletedTask;
+
         private readonly NavigationService _navigationService;
 
-        private string _email = string.Empty;
+        private string _username = string.Empty;
         private string _password = string.Empty;
         private string _confirmPassword = string.Empty;
         private string _errorMessage = string.Empty;
+        private string _infoMessage = string.Empty;
         private bool _isLoading;
 
-        public string Email
+        public string Username
         {
-            get => _email;
-            set => this.RaiseAndSetIfChanged(ref _email, value);
+            get => _username;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _username, value);
+                InfoMessage = string.Empty;
+            }
         }
 
         public string Password
         {
             get => _password;
-            set => this.RaiseAndSetIfChanged(ref _password, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _password, value);
+                InfoMessage = string.Empty;
+            }
         }
 
         public string ConfirmPassword
         {
             get => _confirmPassword;
-            set => this.RaiseAndSetIfChanged(ref _confirmPassword, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _confirmPassword, value);
+                InfoMessage = string.Empty;
+            }
         }
 
         public string ErrorMessage
@@ -66,7 +73,19 @@ namespace Client.ViewModels
             }
         }
 
+        public string InfoMessage
+        {
+            get => _infoMessage;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _infoMessage, value);
+                this.RaisePropertyChanged(nameof(HasInfo));
+            }
+        }
+
         public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+        public bool HasInfo => !string.IsNullOrWhiteSpace(InfoMessage);
 
         public bool IsLoading
         {
@@ -77,9 +96,8 @@ namespace Client.ViewModels
         public ReactiveCommand<Unit, Unit> RegisterCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToLoginCommand { get; }
 
-        public RegisterViewModel(IScreen screen, AuthService authService, NavigationService navigationService)
+        public RegisterViewModel(IScreen screen, NavigationService navigationService)
         {
-            _authService = authService;
             _navigationService = navigationService;
             HostScreen = screen;
 
@@ -89,9 +107,12 @@ namespace Client.ViewModels
 
         private async Task RegisterAsync()
         {
-            if (string.IsNullOrWhiteSpace(Email))
+            ErrorMessage = string.Empty;
+            InfoMessage = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(Username))
             {
-                ErrorMessage = "Введите email";
+                ErrorMessage = "Введите логин";
                 return;
             }
 
@@ -108,20 +129,17 @@ namespace Client.ViewModels
             }
 
             IsLoading = true;
-            ErrorMessage = string.Empty;
-
-            /*var result = await _authService.RegisterAsync(Email, Password);
-
-            IsLoading = false;
-
-            if (result.Success)
+            try
             {
-                await _navigationService.NavigateToLoginAsync();
+                await Task.Yield();
+                InfoMessage =
+                    "Самостоятельная регистрация в приложении отключена. " +
+                    "Новые учётные записи создаёт администратор: войдите как admin → «Админ-панель» → «Учётные записи».";
             }
-            else
+            finally
             {
-                ErrorMessage = result.ErrorMessage ?? "Ошибка регистрации";
-            }*/
+                IsLoading = false;
+            }
         }
 
         private async Task GoToLoginAsync()
@@ -129,6 +147,4 @@ namespace Client.ViewModels
             await _navigationService.NavigateToLoginAsync();
         }
     }
-
 }
-

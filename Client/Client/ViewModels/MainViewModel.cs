@@ -5,9 +5,11 @@ using Client.Models;
 using Client.Services;
 using ReactiveUI;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reactive;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -28,6 +30,8 @@ namespace Client.ViewModels
         private readonly StreamService _streamService;
         private readonly DispatcherTimer _journalRefreshTimer;
         private readonly object _videoFrameLock = new();
+        private static readonly TimeSpan FrameRenderInterval = TimeSpan.FromMilliseconds(120);
+        private static readonly TimeSpan FrameAlertInterval = TimeSpan.FromSeconds(5);
 
         private string _statusText = "Готов к работе";
         private string _serverStatus = "Проверка подключения...";
@@ -36,10 +40,14 @@ namespace Client.ViewModels
         private string _commentText = string.Empty;
         private bool _isRawVideoVisible = true;
         private bool _isAnnotatedFrameVisible;
+        private bool _isJournalRefreshInProgress;
+        private bool _isAnalysisActive;
         private int _videoSourceWidth = 0;
         private int _videoSourceHeight = 0;
         private double _videoViewportWidth = 0;
         private double _videoViewportHeight = 0;
+        private DateTime _lastAnnotatedFrameAt = DateTime.MinValue;
+        private DateTime _lastFrameAlertAt = DateTime.MinValue;
         private Bitmap? _annotatedFrame;
         private VideoCapture? _analysisCapture;
         private FeedingEvent? _selectedEvent;
@@ -133,6 +141,8 @@ namespace Client.ViewModels
             set => this.RaiseAndSetIfChanged(ref _overlayDetections, value);
         }
 
+        public bool IsAdmin => _authService.IsAdmin;
+
         public ReactiveCommand<Unit, Unit> OpenVideoCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToSettingsCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToStreamCommand { get; }
@@ -176,14 +186,17 @@ namespace Client.ViewModels
         {
             if (!IsInitialized)
             {
+                IsInitialized = true;
                 await LoadData();
                 _journalRefreshTimer.Start();
-                IsInitialized = true;
             }
         }
 
         private async Task LoadData()
         {
+            await LoadDataFastAsync();
+            return;
+
             StatusText = "Загрузка данных...";
 
             try
@@ -221,18 +234,101 @@ namespace Client.ViewModels
             }
         }
 
-        private async Task LoadJournalAsync()
+        private async Task LoadDataFastAsync()
+        {
+            StatusText = "Загрузка данных...";
+
+            await Task.WhenAll(
+                LoadEventsFastAsync(),
+                LoadJournalAsync(),
+                LoadServerStatusFastAsync());
+        }
+
+        private async Task LoadEventsFastAsync()
         {
             try
             {
+                var events = await _eventsService.GetEventsAsync();
+                Events.Clear();
+                if (events != null)
+                {
+                    foreach (var e in events)
+                        Events.Add(e);
+                }
+
+                StatusText = $"Загружено событий: {Events.Count}";
+            }
+            catch
+            {
+                StatusText = "Ошибка загрузки событий";
+            }
+        }
+
+        private async Task LoadServerStatusFastAsync()
+        {
+            try
+            {
+                var status = await _streamService.GetStatusAsync();
+                if (status != null)
+                {
+                    ServerStatus = "Успешное подключение к серверу";
+                    ServerStatusColor = "Green";
+                }
+            }
+            catch
+            {
+                ServerStatus = "Сервер недоступен";
+                ServerStatusColor = "Red";
+            }
+        }
+
+        private async Task LoadJournalAsync()
+        {
+            if (_isJournalRefreshInProgress)
+                return;
+
+            _isJournalRefreshInProgress = true;
+            try
+            {
                 var entries = await _journalService.GetEntriesAsync(limit: 200);
-                JournalEntries.Clear();
-                foreach (var entry in entries)
-                    JournalEntries.Add(entry);
+                if (!ShouldReplaceJournalEntries(entries))
+                    return;
+
+                var selectedId = SelectedJournalEntry?.Id;
+                JournalEntries = new ObservableCollection<JournalEntry>(entries);
+
+                if (selectedId.HasValue)
+                    SelectedJournalEntry = JournalEntries.FirstOrDefault(x => x.Id == selectedId.Value);
             }
             catch
             {
             }
+            finally
+            {
+                _isJournalRefreshInProgress = false;
+            }
+        }
+
+        private bool ShouldReplaceJournalEntries(IReadOnlyList<JournalEntry> entries)
+        {
+            if (JournalEntries.Count != entries.Count)
+                return true;
+
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var current = JournalEntries[i];
+                var next = entries[i];
+                if (current.Id != next.Id
+                    || current.Timestamp != next.Timestamp
+                    || current.Level != next.Level
+                    || current.Message != next.Message
+                    || current.Comment != next.Comment)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public async Task LogPlaybackActionAsync(string action, string message)
@@ -242,7 +338,8 @@ namespace Client.ViewModels
                 message: message,
                 source: "player",
                 action: action,
-                level: "info");
+                level: "info",
+                usernameSnapshot: _authService.CurrentUser?.Username);
             await LoadJournalAsync();
         }
 
@@ -262,7 +359,8 @@ namespace Client.ViewModels
                     level: "info",
                     entityType: "journal_entry",
                     entityId: SelectedJournalEntry.Id,
-                    comment: CommentText);
+                    comment: CommentText,
+                    usernameSnapshot: _authService.CurrentUser?.Username);
                 CommentText = string.Empty;
                 await LoadJournalAsync();
             }
@@ -277,12 +375,14 @@ namespace Client.ViewModels
             try
             {
                 await _streamService.StopAsync();
+                _isAnalysisActive = false;
                 await _journalService.RecordAsync(
                     eventCode: "stream_stopped",
                     message: "Анализ потока остановлен вручную",
                     source: "stream",
                     action: "stop",
-                    level: "info");
+                    level: "info",
+                    usernameSnapshot: _authService.CurrentUser?.Username);
                 StatusText = "Анализ остановлен";
                 await LoadJournalAsync();
             }
@@ -297,12 +397,14 @@ namespace Client.ViewModels
             try
             {
                 await _streamService.StopAsync();
+                _isAnalysisActive = false;
                 await _journalService.RecordAsync(
                     eventCode: "stream_paused",
                     message: "Анализ потока поставлен на паузу",
                     source: "player",
                     action: "pause",
-                    level: "info");
+                    level: "info",
+                    usernameSnapshot: _authService.CurrentUser?.Username);
                 StatusText = "Анализ поставлен на паузу";
                 await LoadJournalAsync();
             }
@@ -316,6 +418,26 @@ namespace Client.ViewModels
         {
             await StopStreamAsync();
             ClearAnnotatedFrame();
+        }
+
+        public async Task StartVideoAndAnalysisAsync()
+        {
+            if (string.IsNullOrWhiteSpace(VideoPath) || _isAnalysisActive)
+                return;
+
+            try
+            {
+                ClearAnnotatedFrame();
+                ResetAnalysisCapture(VideoPath);
+                await _streamService.SendVideoAsync(VideoPath, OnStreamFrame);
+                _isAnalysisActive = true;
+                StatusText = "Анализ видео запущен";
+            }
+            catch (Exception ex)
+            {
+                _isAnalysisActive = false;
+                StatusText = $"Не удалось запустить анализ видео: {ex.Message}";
+            }
         }
 
         private async Task OpenVideoAsync()
@@ -365,7 +487,13 @@ namespace Client.ViewModels
                     source: "stream",
                     action: "open_video",
                     level: "info",
-                    detailsJson: $"{{\"path\":\"{VideoPath.Replace("\\", "\\\\")}\"}}");
+                    detailsJson: $"{{\"path\":\"{VideoPath.Replace("\\", "\\\\")}\"}}",
+                    usernameSnapshot: _authService.CurrentUser?.Username);
+
+                _isAnalysisActive = false;
+                await StartVideoAndAnalysisAsync();
+                await LoadJournalAsync();
+                return;
 
                 try
                 {
@@ -383,7 +511,13 @@ namespace Client.ViewModels
 
         private void OnStreamFrame(StreamFrame frame)
         {
-            var annotatedFrame = BuildAnnotatedFrame(frame);
+            Bitmap? annotatedFrame = null;
+            var now = DateTime.UtcNow;
+            if (now - _lastAnnotatedFrameAt >= FrameRenderInterval)
+            {
+                _lastAnnotatedFrameAt = now;
+                annotatedFrame = BuildAnnotatedFrame(frame);
+            }
 
             Dispatcher.UIThread.Post(() =>
             {
@@ -407,7 +541,11 @@ namespace Client.ViewModels
 
             if (frame.Threshold_exceeded || frame.Out_of_schedule)
             {
-                _ = RecordFrameAlertAsync(frame);
+                if (now - _lastFrameAlertAt >= FrameAlertInterval)
+                {
+                    _lastFrameAlertAt = now;
+                    _ = RecordFrameAlertAsync(frame);
+                }
             }
         }
 
@@ -470,6 +608,7 @@ namespace Client.ViewModels
 
         private void ClearAnnotatedFrame()
         {
+            _lastAnnotatedFrameAt = DateTime.MinValue;
             AnnotatedFrame = null;
             IsAnnotatedFrameVisible = false;
             IsRawVideoVisible = true;
@@ -498,7 +637,8 @@ namespace Client.ViewModels
                     threshold_exceeded = frame.Threshold_exceeded,
                     out_of_schedule = frame.Out_of_schedule,
                     bboxes = frame.bboxes
-                }));
+                }),
+                usernameSnapshot: _authService.CurrentUser?.Username);
 
             await LoadJournalAsync();
         }
@@ -561,7 +701,8 @@ namespace Client.ViewModels
                 message: "Пользователь вышел из приложения",
                 source: "auth",
                 action: "logout",
-                level: "info");
+                level: "info",
+                usernameSnapshot: _authService.CurrentUser?.Username);
             _authService.Logout();
             await _navigationService.NavigateToLoginAsync();
         }

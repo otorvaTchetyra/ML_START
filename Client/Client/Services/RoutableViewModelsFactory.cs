@@ -14,5 +14,7 @@ public class RoutableViewModelsFactory(IServiceProvider serviceProvider)
     public SettingsViewModel CreateSettingsViewModel() => _serviceProvider.GetRequiredService<SettingsViewModel>();
     public MainViewModel CreateMainViewModel() => _serviceProvider.GetRequiredService<MainViewModel>();
     public StreamViewModel CreateStreamViewModel() => _serviceProvider.GetRequiredService<StreamViewModel>();
-
+    public AdminHomeViewModel CreateAdminHomeViewModel() => _serviceProvider.GetRequiredService<AdminHomeViewModel>();
+    public AdminUsersViewModel CreateAdminUsersViewModel() => _serviceProvider.GetRequiredService<AdminUsersViewModel>();
+    public AdminJournalViewModel CreateAdminJournalViewModel() => _serviceProvider.GetRequiredService<AdminJournalViewModel>();
 }

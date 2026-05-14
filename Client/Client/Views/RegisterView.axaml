@@ -46,25 +46,25 @@
                     Background="{DynamicResource PanelBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
                     <StackPanel Spacing="8">
                         <TextBlock Text="Регистрация"
                                    FontSize="28"
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="Создайте учётную запись, чтобы получить доступ к панели мониторинга."
+                        <TextBlock Text="Публичная регистрация отключена — учётку выдаёт администратор. Здесь можно прочитать подсказку после нажатия кнопки."
                                    FontSize="14"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" Margin="0,28,0,0" Spacing="8">
-                        <TextBlock Text="Email"
+                        <TextBlock Text="Логин"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontSize="13"/>
                         <TextBox Classes="auth-input"
-                                 Watermark="Введите email"
-                                 Text="{Binding Email}"/>
+                                 Watermark="Придумайте логин"
+                                 Text="{Binding Username}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Margin="0,18,0,0" Spacing="8">
@@ -89,6 +89,20 @@
 
                     <Border Grid.Row="4"
                             Margin="0,18,0,0"
+                            Background="#132A35"
+                            BorderBrush="#254A5A"
+                            BorderThickness="1"
+                            CornerRadius="12"
+                            Padding="12,10"
+                            IsVisible="{Binding HasInfo}">
+                        <TextBlock Text="{Binding InfoMessage}"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Border Grid.Row="5"
+                            Margin="0,18,0,0"
                             Background="#2A1316"
                             BorderBrush="#5A252B"
                             BorderThickness="1"
@@ -101,14 +115,14 @@
                                    TextWrapping="Wrap"/>
                     </Border>
 
-                    <Button Grid.Row="5"
+                    <Button Grid.Row="6"
                             Classes="primary"
                             Margin="0,22,0,0"
                             Content="Создать аккаунт"
                             Command="{Binding RegisterCommand}"
                             IsEnabled="{Binding !IsLoading}"/>
 
-                    <StackPanel Grid.Row="6"
+                    <StackPanel Grid.Row="7"
                                 Orientation="Horizontal"
                                 HorizontalAlignment="Center"
                                 Spacing="6"

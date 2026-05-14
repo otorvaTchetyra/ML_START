@@ -103,18 +103,21 @@ namespace Client.ViewModels
 
             if (success)
             {
-                await _journalService.RecordAsync(
+                _ = _journalService.RecordAsync(
                     eventCode: "login_success",
                     message: $"Пользователь {Email} вошёл в приложение",
                     source: "auth",
                     action: "login",
                     level: "info",
                     usernameSnapshot: Email);
-                await _navigationService.NavigateToMainAsync();
+                if (_authService.IsAdmin)
+                    await _navigationService.NavigateToAdminHomeAsync();
+                else
+                    await _navigationService.NavigateToMainAsync();
             }
             else
             {
-                await _journalService.RecordAsync(
+                _ = _journalService.RecordAsync(
                     eventCode: "login_failed",
                     message: $"Неудачная попытка входа для пользователя {Email}",
                     source: "auth",

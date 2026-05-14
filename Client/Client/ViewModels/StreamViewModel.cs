@@ -47,6 +47,8 @@ namespace Client.ViewModels
             set => this.RaiseAndSetIfChanged(ref _events, value);
         }
 
+        public bool IsAdmin => _authService.IsAdmin;
+
         private string _statusText = "Готов к работе";
         private string _serverStatus = "Подключение...";
         private string _serverStatusColor = "Gray";

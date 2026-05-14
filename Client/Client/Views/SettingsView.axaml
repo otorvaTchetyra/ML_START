@@ -71,6 +71,10 @@
                             Spacing="10"
                             VerticalAlignment="Center">
                     <Button Classes="secondary"
+                            Content="Админ-панель"
+                            Command="{Binding GoToAdminHomeCommand}"
+                            IsVisible="{Binding IsAdmin}"/>
+                    <Button Classes="secondary"
                             Content="Видео"
                             Command="{Binding GoToMainCommand}"/>
                     <Button Classes="secondary"
@@ -79,95 +83,100 @@
                 </StackPanel>
             </Grid>
 
-            <Grid Grid.Row="1"
-                  ColumnDefinitions="1.1*,0.9*"
-                  ColumnSpacing="18"
-                  Margin="0,24,0,0">
+            <ScrollViewer Grid.Row="1"
+                          Margin="0,24,0,0"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="18">
+                    <Grid ColumnDefinitions="1.1*,0.9*"
+                          ColumnSpacing="18">
 
-                <Border Grid.Column="0" Classes="section-card">
-                    <StackPanel Spacing="16">
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Подключение к серверу"
-                                       FontSize="20"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            <TextBlock Text="Проверьте адрес API и убедитесь, что сервер доступен."
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       FontSize="13"/>
-                        </StackPanel>
+                        <Border Grid.Column="0" Classes="section-card">
+                            <StackPanel Spacing="16">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Подключение к серверу"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Проверьте адрес API и убедитесь, что сервер доступен."
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="13"/>
+                                </StackPanel>
 
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="URL сервера"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       FontSize="13"/>
-                            <TextBox Classes="setting-input"
-                                     Watermark="http://localhost:8000"
-                                     Text="{Binding UrlServerPath, Mode=TwoWay}"/>
-                        </StackPanel>
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="URL сервера"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="13"/>
+                                    <TextBox Classes="setting-input"
+                                             Watermark="http://localhost:8000"
+                                             Text="{Binding UrlServerPath, Mode=TwoWay}"/>
+                                </StackPanel>
 
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Button Classes="primary"
-                                    Content="Проверить"
-                                    Command="{Binding TestConnectionCommand}"/>
-                            <TextBlock Text="{Binding ConnectionStatus}"
-                                       Foreground="{DynamicResource MutedBrush}"
-                                       VerticalAlignment="Center"
-                                       IsVisible="{Binding !IsTestingConnection}"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Button Classes="primary"
+                                            Content="Проверить"
+                                            Command="{Binding TestConnectionCommand}"/>
+                                    <TextBlock Text="{Binding ConnectionStatus}"
+                                               Foreground="{DynamicResource MutedBrush}"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding !IsTestingConnection}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
 
-                <Border Grid.Column="1" Classes="section-card">
-                    <StackPanel Spacing="18">
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Параметры интерфейса и модели"
-                                       FontSize="20"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            <TextBlock Text="Здесь можно выбрать тему приложения и подстроить параметры детекции."
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       FontSize="13"/>
-                        </StackPanel>
+                        <Border Grid.Column="1" Classes="section-card">
+                            <StackPanel Spacing="18">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Параметры интерфейса и модели"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Здесь можно выбрать тему приложения и подстроить параметры детекции."
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="13"/>
+                                </StackPanel>
 
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="Тема приложения"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       FontSize="13"/>
-                            <ComboBox Classes="setting-select"
-                                      ItemsSource="{Binding ThemeOptions}"
-                                      SelectedItem="{Binding SelectedTheme, Mode=TwoWay}"/>
-                        </StackPanel>
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Тема приложения"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="13"/>
+                                    <ComboBox Classes="setting-select"
+                                              ItemsSource="{Binding ThemeOptions}"
+                                              SelectedItem="{Binding SelectedTheme, Mode=TwoWay}"/>
+                                </StackPanel>
 
-                        <StackPanel Spacing="8">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="Порог уверенности (Confidence)"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding Confidence, StringFormat=F2}"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            </Grid>
-                            <Slider Minimum="0"
-                                    Maximum="1"
-                                    Value="{Binding Confidence}"/>
-                        </StackPanel>
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Порог уверенности (Confidence)"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Confidence, StringFormat=F2}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    </Grid>
+                                    <Slider Minimum="0"
+                                            Maximum="1"
+                                            Value="{Binding Confidence}"/>
+                                </StackPanel>
 
-                        <StackPanel Spacing="8">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="Порог пересечения (IoU)"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding Iou, StringFormat=F2}"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            </Grid>
-                            <Slider Minimum="0"
-                                    Maximum="1"
-                                    Value="{Binding Iou}"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Grid>
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Порог пересечения (IoU)"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Iou, StringFormat=F2}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    </Grid>
+                                    <Slider Minimum="0"
+                                            Maximum="1"
+                                            Value="{Binding Iou}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
 
             <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,18,0,0">
                 <TextBlock Text="{Binding StatusMessage}"

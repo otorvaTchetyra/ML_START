@@ -1,0 +1,129 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Client.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignWidth="960"
+             d:DesignHeight="780"
+             x:Class="Client.AdminJournalView"
+             x:DataType="vm:AdminJournalViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="ComboBox.journal-filter">
+            <Setter Property="Background" Value="{DynamicResource FieldBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="MinHeight" Value="48"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="{DynamicResource FieldBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="CornerRadius" Value="12"/>
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="{DynamicResource PageBackgroundBrush}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid Margin="24" RowDefinitions="Auto,*">
+                <Button Grid.Row="0"
+                        Classes="ghost"
+                        HorizontalAlignment="Left"
+                        Content="← Назад в панель"
+                        Command="{Binding BackCommand}"
+                        Margin="0,0,0,12"/>
+
+                <Border Grid.Row="1"
+                        MaxWidth="720"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        CornerRadius="28"
+                        Padding="32"
+                        Background="{DynamicResource PanelBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1">
+                    <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="14">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Журнал пользователей"
+                                       FontSize="26"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Записи локального журнала клиента. Фильтр по полю «Пользователь» (логин при действии)."
+                                       FontSize="14"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <ComboBox Grid.Column="0"
+                                      Classes="journal-filter"
+                                      ItemsSource="{Binding FilterOptions}"
+                                      SelectedItem="{Binding SelectedFilter, Mode=TwoWay}"/>
+                            <Button Grid.Column="1"
+                                    Classes="secondary"
+                                    Content="Обновить"
+                                    Command="{Binding RefreshCommand}"/>
+                        </Grid>
+
+                        <ScrollViewer Grid.Row="2"
+                                      MinHeight="320"
+                                      MaxHeight="480">
+                            <ItemsControl ItemsSource="{Binding Entries}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource FieldBrush}"
+                                                CornerRadius="12"
+                                                Margin="0,0,0,10"
+                                                Padding="14">
+                                            <StackPanel Spacing="6">
+                                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                                    <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd.MM.yyyy HH:mm:ss}}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource MutedBrush}"/>
+                                                    <Border Background="{DynamicResource AccentBrush}"
+                                                            CornerRadius="999"
+                                                            Padding="8,2">
+                                                        <TextBlock Text="{Binding Level}"
+                                                                   FontSize="10"
+                                                                   Foreground="White"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding UsernameSnapshot, StringFormat={}Пользователь: {0}}"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                <TextBlock Text="{Binding Message}"
+                                                           FontSize="13"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                           TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding Category, StringFormat={}Категория: {0}}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource MutedBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <TextBlock Grid.Row="3"
+                                   Text="{Binding StatusMessage}"
+                                   Foreground="{Binding StatusBrush}"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </ScrollViewer>
+    </Border>
+</UserControl>
