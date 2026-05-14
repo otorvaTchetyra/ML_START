@@ -8,6 +8,10 @@ build/
 .pytest_cache/
 *.docx
 server/weights/
+.venv/
+*.db
+*.sqlite
+*.sqlite3
 .vs/
 # .NET и Avalonia
 bin/

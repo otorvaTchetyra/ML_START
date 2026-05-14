@@ -164,3 +164,12 @@ def test_stream_status_reports_running_flag(app_client, admin_headers):
     r = app_client.get("/stream/status", headers=admin_headers)
     assert r.status_code == 200
     assert r.json()["is_running"] is False
+
+
+def test_mjpeg_requires_auth(app_client):
+    assert app_client.get("/stream/mjpeg").status_code == 401
+
+
+def test_mjpeg_409_when_not_running(app_client, admin_headers):
+    r = app_client.get("/stream/mjpeg", headers=admin_headers)
+    assert r.status_code == 409

@@ -11,7 +11,7 @@ FastAPI-приложение с JWT-авторизацией, ролями admin
 | Группа | Эндпоинты | Назначение |
 |--------|-----------|------------|
 | Auth | `POST /auth/login`, `GET /auth/me`, `GET/POST/DELETE /auth/users` | Вход по логину/паролю, выдача JWT, управление пользователями (только admin) |
-| Stream | `POST /stream/upload`, `POST /stream/start`, `POST /stream/stop`, `GET /stream/status` | Загрузка MP4/AVI или подключение к камере (RTSP/HTTP/индекс), управление анализом |
+| Stream | `POST /stream/upload`, `POST /stream/start`, `POST /stream/stop`, `GET /stream/status`, `GET /stream/mjpeg` | Загрузка MP4/AVI или подключение к камере (RTSP/HTTP/индекс), управление анализом, MJPEG-стрим с наложенными bbox |
 | Events | `GET /events`, `PATCH /events/{id}/comment` | Журнал кормлений с фильтрами по дате и типу события, добавление комментариев |
 | Stats | `GET /stats` | Статистика за период с разбивкой по интервалам (`bucket=hour\|day\|minute\|<сек>`) |
 | Settings | `GET /settings`, `PATCH /settings` | Конфигуратор: порог гранул, расписание, параметры модели; настройки сохраняются между сессиями |
@@ -75,6 +75,24 @@ FastAPI-приложение с JWT-авторизацией, ролями admin
  "bboxes":[{"x1":120.0,"y1":80.5,"x2":150.0,"y2":110.0,"confidence":0.87}]}
 ```
 
+### MJPEG-стрим с наложением
+
+Чтобы клиенту не приходилось самому открывать камеру и рисовать bbox, добавлен отдельный канал картинки.
+
+```
+GET /stream/mjpeg
+Authorization: Bearer <jwt>
+```
+
+- `Content-Type: multipart/x-mixed-replace; boundary=frame`
+- Каждый блок: `--frame\r\nContent-Type: image/jpeg\r\nContent-Length: N\r\n\r\n<JPEG-bytes>\r\n`
+- Кадр приходит **с уже нарисованными bbox** (зелёные — норма, красные — превышение порога) и текстовым оверлеем (счётчик гранул, интенсивность).
+- Камеру при этом открывает **только сервер**; на клиенте обращений к железу нет — соответствует требованию ТЗ «взаимодействие исключительно через API».
+- Возвращает `409`, если анализ не запущен (нужно сначала дёрнуть `/stream/upload` или `/stream/start`).
+- `/stream/stop` корректно завершает MJPEG-сессию.
+
+Параллельный канал `/stream/start` (ndjson) продолжает отдавать метрики и сырые bbox — клиент может слушать оба потока одновременно (общий захват камеры на стороне сервера, никаких дублирующих чтений).
+
 ---
 
 ## Тесты
@@ -97,8 +115,10 @@ FastAPI-приложение с JWT-авторизацией, ролями admin
 | `test_stream_requires_auth` | Эндпоинты стрима требуют JWT |
 | `test_stream_409_when_running` | Повторный старт во время работы возвращает 409 |
 | `test_stream_status_reports_running_flag` | `/stream/status` отдаёт корректное состояние |
+| `test_mjpeg_requires_auth` | `/stream/mjpeg` без токена возвращает 401 |
+| `test_mjpeg_409_when_not_running` | `/stream/mjpeg` без активного анализа возвращает 409 |
 
-Результат: **14/14 тестов API + 10/10 counter = 24/24 пройдено**.
+Результат: **16/16 тестов API + 10/10 counter + 8/8 tracker = 34/34 пройдено**.
 
 ```
 pytest tests/ -v

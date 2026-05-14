@@ -27,6 +27,38 @@ _counter: GranuleCounter | None = None
 _tracker: GranuleTracker | None = None
 _is_running: bool = False
 
+_latest_jpeg: bytes | None = None
+_frame_version: int = 0
+_frame_cond: asyncio.Condition | None = None
+
+
+def _get_frame_cond() -> asyncio.Condition:
+    global _frame_cond
+    if _frame_cond is None:
+        _frame_cond = asyncio.Condition()
+    return _frame_cond
+
+
+def _render_overlay(frame, detections, granule_count: int, intensity_per_sec: float,
+                    threshold_exceeded: bool) -> bytes | None:
+    annotated = frame.copy()
+    color = (0, 0, 255) if threshold_exceeded else (0, 255, 0)
+    for d in detections:
+        cv2.rectangle(annotated, (int(d.x1), int(d.y1)), (int(d.x2), int(d.y2)), color, 2)
+    label = f"granules: {granule_count}  intensity: {intensity_per_sec:.1f}/s"
+    cv2.putText(annotated, label, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    ok, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    return buf.tobytes() if ok else None
+
+
+async def _publish_frame(jpeg: bytes) -> None:
+    global _latest_jpeg, _frame_version
+    cond = _get_frame_cond()
+    async with cond:
+        _latest_jpeg = jpeg
+        _frame_version += 1
+        cond.notify_all()
+
 
 def get_detector() -> GranuleDetector:
     global _detector
@@ -103,8 +135,9 @@ def _open_capture(source: str) -> cv2.VideoCapture:
 
 
 async def _process_video_stream(source: str, app_settings: dict, cleanup_path: str | None = None):
-    global _is_running
+    global _is_running, _latest_jpeg
 
+    _latest_jpeg = None
     detector = get_detector()
     counter = get_counter()
     tracker = get_tracker()
@@ -179,6 +212,11 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
                 ],
             )
 
+            jpeg = _render_overlay(frame, detections, result.granule_count,
+                                   result.intensity_per_sec, threshold_exceeded)
+            if jpeg is not None:
+                await _publish_frame(jpeg)
+
             yield payload.model_dump_json() + "\n"
             frame_index += 1
             await asyncio.sleep(0)
@@ -188,6 +226,9 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
         if cleanup_path:
             Path(cleanup_path).unlink(missing_ok=True)
         _is_running = False
+        cond = _get_frame_cond()
+        async with cond:
+            cond.notify_all()
         logger.info("Обработка завершена. Кадров: %d, гранул: %d", frame_index, counter.total_granules)
 
 
@@ -238,10 +279,43 @@ async def start_from_source(
 
 
 @router.post("/stop")
-def stop_stream(current_user: User = Depends(get_current_user)):
+async def stop_stream(current_user: User = Depends(get_current_user)):
     global _is_running
     _is_running = False
+    cond = _get_frame_cond()
+    async with cond:
+        cond.notify_all()
     return {"status": "stopped"}
+
+
+async def _mjpeg_generator():
+    boundary = b"--frame"
+    cond = _get_frame_cond()
+    last_version = 0
+    while _is_running or _latest_jpeg is not None:
+        async with cond:
+            while _is_running and last_version == _frame_version:
+                await cond.wait()
+            jpeg = _latest_jpeg
+            last_version = _frame_version
+        if not _is_running and jpeg is None:
+            break
+        if jpeg is None:
+            continue
+        yield boundary + b"\r\nContent-Type: image/jpeg\r\nContent-Length: " + \
+              str(len(jpeg)).encode() + b"\r\n\r\n" + jpeg + b"\r\n"
+        if not _is_running:
+            break
+
+
+@router.get("/mjpeg")
+async def mjpeg_stream(current_user: User = Depends(get_current_user)):
+    if not _is_running:
+        raise HTTPException(status_code=409, detail="Анализ не запущен")
+    return StreamingResponse(
+        _mjpeg_generator(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
 
 
 @router.get("/status")
