@@ -103,9 +103,38 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
 
-                        <Button Classes="secondary"
-                                Content="Удалить выбранного"
-                                Command="{Binding DeleteUserCommand}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Classes="secondary"
+                                    Content="Удалить выбранного"
+                                    Command="{Binding DeleteUserCommand}"/>
+                        </StackPanel>
+
+                        <Border IsVisible="{Binding IsEditVisible}"
+                                Background="{DynamicResource FieldBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="14"
+                                Padding="16">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Редактировать пользователя"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBox Classes="auth-input"
+                                         Watermark="Логин"
+                                         Text="{Binding EditUsername, Mode=TwoWay}"/>
+                                <TextBox Classes="auth-input"
+                                         PasswordChar="*"
+                                         Watermark="Новый пароль (оставьте пустым, чтобы не менять)"
+                                         Text="{Binding EditPassword, Mode=TwoWay}"/>
+                                <ComboBox ItemsSource="{Binding AvailableRoles}"
+                                          SelectedItem="{Binding EditRole, Mode=TwoWay}"
+                                          HorizontalAlignment="Stretch"/>
+                                <Button Classes="primary"
+                                        Content="Сохранить изменения"
+                                        Command="{Binding SaveEditCommand}"
+                                        IsEnabled="{Binding !IsBusy}"/>
+                            </StackPanel>
+                        </Border>
 
                         <Separator/>
 

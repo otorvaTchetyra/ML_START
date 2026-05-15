@@ -29,4 +29,11 @@ public class UsersService
             "/auth/users",
             new { username, password, role = "operator" });
     }
+
+    public Task<ApiUser?> UpdateUserAsync(int id, string? username, string? password, string? role, bool? isActive)
+    {
+        return _apiClient.PutAsync<ApiUser>(
+            $"/auth/users/{id}",
+            new { username, password, role, is_active = isActive });
+    }
 }
