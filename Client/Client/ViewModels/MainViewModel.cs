@@ -616,12 +616,7 @@ namespace Client.ViewModels
             await LoadJournalAsync();
         }
 
-        private async Task GoToSettingsAsync()
-        {
-            await StopVideoAndAnalysisAsync();
-            IsAlertActive = false;
-            await _navigationService.NavigateToSettingsAsync();
-        }
+        private async Task GoToSettingsAsync() => await _navigationService.NavigateToSettingsAsync();
 
         private async Task GoToStreamAsync()
         {
