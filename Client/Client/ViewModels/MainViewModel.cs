@@ -43,6 +43,8 @@ namespace Client.ViewModels
         private bool _isLoadingIndeterminate;
         private bool _isAlertActive;
         private string _alertText = string.Empty;
+        private int _granuleCount;
+        private float _intensityPerSec;
         private int _videoSourceWidth = 0;
         private int _videoSourceHeight = 0;
         private double _videoViewportWidth = 0;
@@ -155,6 +157,18 @@ namespace Client.ViewModels
         {
             get => _alertText;
             set => this.RaiseAndSetIfChanged(ref _alertText, value);
+        }
+
+        public int GranuleCount
+        {
+            get => _granuleCount;
+            set => this.RaiseAndSetIfChanged(ref _granuleCount, value);
+        }
+
+        public float IntensityPerSec
+        {
+            get => _intensityPerSec;
+            set => this.RaiseAndSetIfChanged(ref _intensityPerSec, value);
         }
 
         public bool IsAdmin => _authService.IsAdmin;
@@ -486,6 +500,8 @@ namespace Client.ViewModels
 
                 CurrentFrameInfo = frame;
                 RebuildOverlayDetections(frame);
+                GranuleCount = frame.Granule_count;
+                IntensityPerSec = frame.Intensity_per_sec;
                 StatusText = $"Кадр {frame.Frame_index}: гранул {frame.Granule_count}, детектов {frame.bboxes.Count}, оверлей {OverlayDetections.Count}, вьюпорт {_videoViewportWidth:F0}x{_videoViewportHeight:F0}, источник {_videoSourceWidth}x{_videoSourceHeight}";
             });
 
