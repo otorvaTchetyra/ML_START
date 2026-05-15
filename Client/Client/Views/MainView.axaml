@@ -134,6 +134,34 @@
                                                 IsHitTestVisible="False"
                                                 HorizontalAlignment="Stretch"
                                                 VerticalAlignment="Stretch"/>
+                                        <Border IsVisible="{Binding IsLoading}"
+                                                Background="#CC000000"
+                                                IsHitTestVisible="False">
+                                            <StackPanel HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Spacing="14">
+                                                <TextBlock Text="{Binding LoadingText}"
+                                                           Foreground="White"
+                                                           FontSize="16"
+                                                           FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center"/>
+                                                <ProgressBar Value="{Binding LoadingPercent}"
+                                                             Maximum="100"
+                                                             IsIndeterminate="{Binding IsLoadingIndeterminate}"
+                                                             Width="280"
+                                                             Height="8"/>
+                                                <TextBlock HorizontalAlignment="Center"
+                                                           Foreground="#CCFFFFFF"
+                                                           FontSize="13"
+                                                           IsVisible="{Binding !IsLoadingIndeterminate}">
+                                                    <TextBlock.Text>
+                                                        <MultiBinding StringFormat="{}{0:F0}%">
+                                                            <Binding Path="LoadingPercent"/>
+                                                        </MultiBinding>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Border>
                                     </Grid>
 
                                     <Border Grid.Row="1"

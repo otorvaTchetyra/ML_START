@@ -35,6 +35,10 @@ namespace Client.ViewModels
         private string _commentText = string.Empty;
         private bool _isJournalRefreshInProgress;
         private bool _isAnalysisActive;
+        private bool _isLoading;
+        private string _loadingText = string.Empty;
+        private double _loadingPercent;
+        private bool _isLoadingIndeterminate;
         private int _videoSourceWidth = 0;
         private int _videoSourceHeight = 0;
         private double _videoViewportWidth = 0;
@@ -111,6 +115,30 @@ namespace Client.ViewModels
         {
             get => _overlayDetections;
             set => this.RaiseAndSetIfChanged(ref _overlayDetections, value);
+        }
+
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set => this.RaiseAndSetIfChanged(ref _isLoading, value);
+        }
+
+        public string LoadingText
+        {
+            get => _loadingText;
+            set => this.RaiseAndSetIfChanged(ref _loadingText, value);
+        }
+
+        public double LoadingPercent
+        {
+            get => _loadingPercent;
+            set => this.RaiseAndSetIfChanged(ref _loadingPercent, value);
+        }
+
+        public bool IsLoadingIndeterminate
+        {
+            get => _isLoadingIndeterminate;
+            set => this.RaiseAndSetIfChanged(ref _isLoadingIndeterminate, value);
         }
 
         public bool IsAdmin => _authService.IsAdmin;
@@ -336,13 +364,36 @@ namespace Client.ViewModels
                 var (fw, fh) = VideoDimensionReader.TryRead(VideoPath);
                 _videoSourceWidth = fw;
                 _videoSourceHeight = fh;
-                await _streamService.SendVideoAsync(VideoPath, OnStreamFrame);
+
+                IsLoading = true;
+                IsLoadingIndeterminate = false;
+                LoadingPercent = 0;
+                LoadingText = "Загрузка видео на сервер...";
+
+                var uploadProgress = new Progress<double>(p =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        LoadingPercent = p;
+                    });
+                });
+
+                await _streamService.SendVideoAsync(VideoPath, OnStreamFrame, uploadProgress, () =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        LoadingText = "Анализ видео...";
+                        IsLoadingIndeterminate = true;
+                    });
+                });
+
                 _isAnalysisActive = true;
                 StatusText = "Анализ видео запущен";
             }
             catch (Exception ex)
             {
                 _isAnalysisActive = false;
+                IsLoading = false;
                 StatusText = $"Не удалось запустить анализ видео: {ex.Message}";
             }
         }
@@ -399,6 +450,12 @@ namespace Client.ViewModels
 
             Dispatcher.UIThread.Post(() =>
             {
+                if (_isLoading)
+                {
+                    IsLoading = false;
+                    IsLoadingIndeterminate = false;
+                }
+
                 foreach (var bbox in frame.bboxes)
                 {
                     bbox.Width = bbox.x2 - bbox.x1;
@@ -414,7 +471,6 @@ namespace Client.ViewModels
                 CurrentFrameInfo = frame;
                 RebuildOverlayDetections(frame);
                 StatusText = $"Кадр {frame.Frame_index}: гранул {frame.Granule_count}, детектов {frame.bboxes.Count}, оверлей {OverlayDetections.Count}, вьюпорт {_videoViewportWidth:F0}x{_videoViewportHeight:F0}, источник {_videoSourceWidth}x{_videoSourceHeight}";
-
             });
 
             if (alert)

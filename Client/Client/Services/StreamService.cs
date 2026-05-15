@@ -22,11 +22,12 @@ namespace Client.Services
             _apiClient = apiClient;
         }
 
-        public async Task SendVideoAsync(string path, Action<StreamFrame> onFrameReceived)
+        public async Task SendVideoAsync(string path, Action<StreamFrame> onFrameReceived, IProgress<double>? uploadProgress = null, Action? onUploadComplete = null)
         {
             await StopAsync();
 
-            var response = await _apiClient.PostFileAsync("/stream/upload", path);
+            var response = await _apiClient.PostFileAsync("/stream/upload", path, progress: uploadProgress);
+            onUploadComplete?.Invoke();
             _activeResponse = response;
             var stream = await response.Content.ReadAsStreamAsync();
             _activeStream = stream;

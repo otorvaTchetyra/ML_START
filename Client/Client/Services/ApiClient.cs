@@ -62,11 +62,13 @@ public class ApiClient : IApiClient
         return response;
     }
 
-    public async Task<HttpResponseMessage> PostFileAsync(string endpoint, string filePath, string formFieldName = "file")
+    public async Task<HttpResponseMessage> PostFileAsync(string endpoint, string filePath, string formFieldName = "file", IProgress<double>? progress = null)
     {
         await using var fs = File.OpenRead(filePath);
+        using var progressStream = progress != null ? new ProgressStream(fs, fs.Length, progress) : null;
+        Stream uploadStream = progressStream ?? (Stream)fs;
         using var content = new MultipartFormDataContent();
-        using var fileContent = new StreamContent(fs);
+        using var fileContent = new StreamContent(uploadStream);
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         content.Add(fileContent, formFieldName, Path.GetFileName(filePath));
 
