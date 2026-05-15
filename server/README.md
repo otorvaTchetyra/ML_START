@@ -268,4 +268,3 @@ pytest tests/ -v
 | `Client/ViewModels/SettingsViewModel.cs` | `GoToMainAsync` через `NavigateBack`; сохранение файла отделено от вызова API |
 | `Client/Services/ConfigurationService.cs` | Путь к файлу через `AppContext.BaseDirectory`; `BuildConfig` с `SetBasePath` |
 | `Client/App.axaml.cs` | `ConfigurationBuilder` с `SetBasePath(AppContext.BaseDirectory)` |
-| `Client/appsettings.json` | Исправлено `"Iou": "0,45"` → `"0.45"` |
