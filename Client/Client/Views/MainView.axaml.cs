@@ -27,6 +27,7 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
     private int _unmanagedBufferSize;
     private int _vlcW, _vlcH;
     private readonly object _frameLock = new();
+    private bool _ignoreEndReached;
 
     public MainView()
     {
@@ -42,6 +43,18 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
         _mediaPlayer = new MediaPlayer(_libVlc);
         _mediaPlayer.SetVideoFormatCallbacks(VideoFormatCallback, VideoCleanupCallback);
         _mediaPlayer.SetVideoCallbacks(LockCallback, null, DisplayCallback);
+        _mediaPlayer.EndReached += OnVideoEndReached;
+    }
+
+    private void OnVideoEndReached(object? sender, EventArgs e)
+    {
+        if (_ignoreEndReached) return;
+        Dispatcher.UIThread.Post(async () =>
+        {
+            VideoImage.Source = null;
+            if (DataContext is MainViewModel vm)
+                await vm.StopVideoAndAnalysisAsync();
+        });
     }
 
     private uint VideoFormatCallback(ref IntPtr opaque, IntPtr chroma, ref uint width, ref uint height, ref uint pitches, ref uint lines)
@@ -189,10 +202,13 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
         PlayPath(vm.VideoPath);
     }
 
-    private void PlayPath(string path)
+    private async void PlayPath(string path)
     {
         if (_mediaPlayer == null || _libVlc == null) return;
+        _ignoreEndReached = true;
         _mediaPlayer.Stop();
+        await Task.Delay(150);
+        _ignoreEndReached = false;
         var media = new Media(_libVlc, path, FromType.FromPath);
         _mediaPlayer.Media = media;
         media.Dispose();

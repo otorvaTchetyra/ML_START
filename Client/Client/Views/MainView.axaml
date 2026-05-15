@@ -134,6 +134,39 @@
                                                 IsHitTestVisible="False"
                                                 HorizontalAlignment="Stretch"
                                                 VerticalAlignment="Stretch"/>
+                                        <Border HorizontalAlignment="Left"
+                                                VerticalAlignment="Bottom"
+                                                Margin="10"
+                                                Background="#AA000000"
+                                                CornerRadius="8"
+                                                Padding="10,6"
+                                                IsHitTestVisible="False">
+                                            <StackPanel Spacing="2">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="Гранул:"
+                                                               Foreground="#AAFFFFFF"
+                                                               FontSize="12"/>
+                                                    <TextBlock Text="{Binding GranuleCount}"
+                                                               Foreground="White"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="Интенсивность:"
+                                                               Foreground="#AAFFFFFF"
+                                                               FontSize="12"/>
+                                                    <TextBlock Foreground="White"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold">
+                                                        <TextBlock.Text>
+                                                            <MultiBinding StringFormat="{}{0:F1} гр/с">
+                                                                <Binding Path="IntensityPerSec"/>
+                                                            </MultiBinding>
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
                                         <Border IsVisible="{Binding IsAlertActive}"
                                                 Background="#CCCC2200"
                                                 VerticalAlignment="Top"
@@ -146,7 +179,7 @@
                                                        HorizontalAlignment="Center"/>
                                         </Border>
                                         <Border IsVisible="{Binding IsLoading}"
-                                                Background="#CC000000"
+                                                Background="#FF000000"
                                                 IsHitTestVisible="False">
                                             <StackPanel HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
