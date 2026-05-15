@@ -30,6 +30,8 @@ public class AdminUsersViewModel : ViewModelBase, IRoutableViewModel
     private string _editUsername = string.Empty;
     private string _editPassword = string.Empty;
     private string _editRole = "operator";
+    private bool _isNewPasswordVisible;
+    private bool _isEditPasswordVisible;
     private string _feedbackMessage = string.Empty;
     private IBrush _feedbackBrush = Brushes.Transparent;
     private bool _isBusy;
@@ -90,6 +92,18 @@ public class AdminUsersViewModel : ViewModelBase, IRoutableViewModel
 
     public string[] AvailableRoles { get; } = ["operator", "admin"];
 
+    public bool IsNewPasswordVisible
+    {
+        get => _isNewPasswordVisible;
+        set => this.RaiseAndSetIfChanged(ref _isNewPasswordVisible, value);
+    }
+
+    public bool IsEditPasswordVisible
+    {
+        get => _isEditPasswordVisible;
+        set => this.RaiseAndSetIfChanged(ref _isEditPasswordVisible, value);
+    }
+
     public string FeedbackMessage
     {
         get => _feedbackMessage;
@@ -119,6 +133,8 @@ public class AdminUsersViewModel : ViewModelBase, IRoutableViewModel
     public ReactiveCommand<Unit, Unit> CreateOperatorCommand { get; }
     public ReactiveCommand<Unit, Unit> DeleteUserCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveEditCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleNewPasswordCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleEditPasswordCommand { get; }
 
     public AdminUsersViewModel(
         IScreen screen,
@@ -151,6 +167,9 @@ public class AdminUsersViewModel : ViewModelBase, IRoutableViewModel
         SaveEditCommand = ReactiveCommand.CreateFromTask(
             SaveEditAsync,
             this.WhenAnyValue(x => x.IsBusy, b => !b));
+
+        ToggleNewPasswordCommand = ReactiveCommand.Create(() => { IsNewPasswordVisible = !IsNewPasswordVisible; });
+        ToggleEditPasswordCommand = ReactiveCommand.Create(() => { IsEditPasswordVisible = !IsEditPasswordVisible; });
     }
 
     public async Task InitializeAsync()
