@@ -172,6 +172,26 @@
                                             Maximum="1"
                                             Value="{Binding Iou}"/>
                                 </StackPanel>
+
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Порог гранул (Granule Threshold)"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding GranuleThreshold}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    </Grid>
+                                    <Slider Minimum="1"
+                                            Maximum="200"
+                                            TickFrequency="1"
+                                            IsSnapToTickEnabled="True"
+                                            Value="{Binding GranuleThreshold}"/>
+                                    <TextBlock Text="Число гранул в кадре, при превышении которого срабатывает уведомление."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource MutedBrush}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </Grid>
