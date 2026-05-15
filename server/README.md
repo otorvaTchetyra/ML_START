@@ -333,3 +333,24 @@ pytest tests/ -v
 | `Client/Services/StreamService.cs` | `SendVideoAsync` принимает `uploadProgress` и `onUploadComplete` |
 | `Client/ViewModels/MainViewModel.cs` | Свойства `IsLoading`, `LoadingText`, `LoadingPercent`, `IsLoadingIndeterminate`; управление состоянием загрузки |
 | `Client/Views/MainView.axaml` | Оверлей `Border` с `ProgressBar` поверх видео |
+
+---
+
+## Кнопка показа пароля и центрирование текста на кнопке входа
+**Дата:** 15.05.2026  
+**Статус:** Выполнено
+
+### Что реализовано
+
+**Кнопка показа/скрытия пароля.** В поле ввода пароля на экране авторизации добавлена иконка глаза. Когда пароль скрыт — отображается открытый глаз, нажатие показывает введённые символы. Когда пароль виден — отображается закрытый глаз, нажатие скрывает. Иконки реализованы через `Path` с геометрией Material Design. Поле пароля дублируется: одно с `PasswordChar="*"`, второе без — видимость переключается через `IsPasswordVisible` в `LoginViewModel`.
+
+**Центрирование текста кнопки "Войти в систему".** Добавлены `HorizontalContentAlignment="Center"` и `VerticalContentAlignment="Center"` в стиль кнопки `Button.primary`.
+
+**Вход по клавише Enter.** Кнопке "Войти в систему" добавлено свойство `IsDefault="True"` — теперь нажатие Enter в любом поле формы авторизации запускает вход без необходимости кликать мышью.
+
+### Файлы
+
+| Файл | Описание |
+|------|----------|
+| `Client/ViewModels/LoginViewModel.cs` | Свойство `IsPasswordVisible`; команда `TogglePasswordCommand` |
+| `Client/Views/LoginView.axaml` | Два TextBox для пароля с переключением видимости; кнопка-глаз с Path-иконками; центрирование текста кнопки входа |
