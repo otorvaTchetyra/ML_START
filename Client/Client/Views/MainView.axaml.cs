@@ -75,6 +75,12 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
         }
     }
 
+    private void VideoGrid_SizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+            vm.UpdateVideoViewport(e.NewSize.Width, e.NewSize.Height);
+    }
+
     private async Task RestartStoppedPlayerAsync(MainViewModel vm)
     {
         if (!_wasStopped || string.IsNullOrWhiteSpace(vm.VideoPath))

@@ -174,3 +174,51 @@ pytest tests/ -v
 |------|----------|
 | `api/stream.py` | Чтение `CAP_PROP_FRAME_WIDTH` / `CAP_PROP_FRAME_HEIGHT`, передача в payload |
 | `schemas/schemas.py` | Поля `source_width: int` и `source_height: int` в `FrameAnalysisResponse` |
+
+---
+
+## Поправки: Исправление клиентского приложения
+**Дата:** 15.05.2026  
+**Статус:** Выполнено
+
+### Проблемы, которые были выявлены
+
+1. **Вылет при открытии видео.** Клиент использовал библиотеку OpenCvSharp для захвата первого кадра видеофайла. На Linux нативная библиотека `OpenCvSharpExtern` не загружается — приложение падало с `DllNotFoundException` сразу после выбора файла.
+2. **Аннотации не отображались.** Подход с рендерингом аннотированного кадра через OpenCV на стороне клиента не работал: после удаления OpenCvSharp замена bounding box на экране отсутствовала полностью.
+3. **Ошибка авторизации.** Сервер ожидал JSON с полями `username` и `password` в нижнем регистре, а клиент отправлял `Username` и `Password` с заглавной буквы из-за отсутствия атрибутов сериализации.
+4. **Ошибка парсинга URI на Linux.** `Uri.TryCreate("/auth/login", UriKind.Absolute)` на Linux возвращал `file:///auth/login` вместо ожидаемого пути. Запросы авторизации уходили по неверному адресу.
+
+### Что реализовано
+
+**Удаление OpenCvSharp из клиента. Переход на кроссплатформенное решение.**
+
+Пакеты `OpenCvSharp4` и `OpenCvSharpExtern` убраны из проекта. Вся логика захвата и аннотации кадров через `VideoCapture` и `Mat` удалена из `MainViewModel` и `CameraCaptureService`. Размеры видеоисточника теперь берутся из полей `source_width` / `source_height`, которые сервер передаёт в каждом кадре.
+
+Прежний подход работал только на Windows (`OpenCvSharp4.runtime.win`): на Linux нативная библиотека не загружалась. Новый стек полностью кроссплатформенный: воспроизведение видео обеспечивает LibVLC (работает на Windows и Linux), детекция выполняется на сервере, оверлей реализован средствами Avalonia без нативных зависимостей. Коллеги на Windows получают тот же функционал без каких-либо изменений на своей стороне.
+
+**Оверлей bounding box через ItemsControl + Canvas.**
+
+Вместо подмены кадра аннотированным изображением реализован векторный оверлей: `ItemsControl` с `Grid` в качестве панели элементов и нулевым `Canvas` внутри каждого шаблона. `Canvas.Left` / `Canvas.Top` устанавливаются напрямую на `Border`, который является прямым дочерним элементом `Canvas` — это корректный способ позиционирования в Avalonia. Координаты пересчитываются с учётом letterbox-отступов и масштаба при каждом изменении размера области просмотра.
+
+**Исправление авторизации.**
+
+На модель `LoginRequest` добавлены атрибуты `[JsonPropertyName("username")]` / `[JsonPropertyName("password")]`. В `ApiClient.PostAsync` переход на `JsonContent.Create(data, data.GetType())` — это гарантирует применение атрибутов сериализации во время выполнения.
+
+**Исправление URI на Linux.**
+
+В `ApiClient.BuildUri` добавлена проверка схемы: если `Uri.TryCreate` возвращает URI со схемой, отличной от `http` / `https`, он игнорируется и адрес собирается из базового URL. Это исключает подмену на `file://` при обработке относительных путей.
+
+### Файлы
+
+| Файл | Описание |
+|------|----------|
+| `Client/Client.csproj` | Удалены пакеты OpenCvSharp4 и OpenCvSharpExtern |
+| `Client/ViewModels/MainViewModel.cs` | Удалена вся логика OpenCvSharp; оверлей через `OverlayDetections`; размеры из `source_width`/`source_height` |
+| `Client/Views/MainView.axaml` | Заменён `<Image>` аннотированного кадра на `ItemsControl` с векторным оверлеем |
+| `Client/Views/MainView.axaml.cs` | Добавлен обработчик `VideoGrid_SizeChanged` для пересчёта координат оверлея |
+| `Client/Services/CameraCaptureService.cs` | Удалена зависимость от OpenCvSharp |
+| `Client/ViewModels/StreamViewModel.cs` | Удалён обработчик `Mat`-кадров |
+| `Client/Models/StreamFrame.cs` | Добавлены поля `Source_width` и `Source_height` |
+| `Client/Services/ApiClient.cs` | Исправлены `BuildUri` (проверка схемы) и `PostAsync` (корректная сериализация) |
+| `Client/Models/LoginRequest.cs` | Добавлены `[JsonPropertyName]` для совместимости с сервером |
+| `Client/appsettings.json` | Адрес сервера указывает на `http://185.125.102.24:8000` |

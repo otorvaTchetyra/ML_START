@@ -1,11 +1,8 @@
-using Avalonia.Media.Imaging;
 using Client.Models;
 using Client.Services;
-using OpenCvSharp;
 using ReactiveUI;
 using System;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Reactive;
 using System.Threading.Tasks;
 
@@ -31,13 +28,6 @@ namespace Client.ViewModels
         {
             get => _currentFrameInfo;
             set => this.RaiseAndSetIfChanged(ref _currentFrameInfo, value);
-        }
-
-        private Bitmap? _currentFrame;
-        public Bitmap? CurrentFrame
-        {
-            get => _currentFrame;
-            set => this.RaiseAndSetIfChanged(ref _currentFrame, value);
         }
 
         private ObservableCollection<FeedingEvent> _events = new();
@@ -140,7 +130,6 @@ namespace Client.ViewModels
                 action: "start",
                 level: "info");
 
-            _cameraService.OnFrameCaptured += OnFrameCaptured;
             await _streamService.StartCameraAsync("0", OnStreamFrame);
             await _cameraService.StartCaptureAsync(0);
         }
@@ -150,7 +139,14 @@ namespace Client.ViewModels
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 StatusText = $"Гранул: {frame.Granule_count} | {frame.Intensity_per_sec:F1}/сек";
-                UpdateBoundingBoxes(frame);
+
+                foreach (var bbox in frame.bboxes)
+                {
+                    bbox.Width = bbox.x2 - bbox.x1;
+                    bbox.Height = bbox.y2 - bbox.y1;
+                }
+
+                CurrentFrameInfo = frame;
 
                 if (frame.Threshold_exceeded || frame.Out_of_schedule)
                 {
@@ -180,38 +176,13 @@ namespace Client.ViewModels
             }
         }
 
-        private void UpdateBoundingBoxes(StreamFrame frame)
-        {
-            foreach (var bbox in frame.bboxes)
-            {
-                bbox.Width = bbox.x2 - bbox.x1;
-                bbox.Height = bbox.y2 - bbox.y1;
-            }
-
-            CurrentFrameInfo = frame;
-        }
-
-        private void OnFrameCaptured(Mat frame)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                using var stream = new MemoryStream();
-                var imageBytes = frame.ToBytes(".jpg");
-                CurrentFrame = new Bitmap(new MemoryStream(imageBytes));
-                frame.Dispose();
-            });
-        }
-
         private async Task StopCameraAsync()
         {
             if (!_isCapturing)
                 return;
 
             _isCapturing = false;
-
-            _cameraService.OnFrameCaptured -= OnFrameCaptured;
             _cameraService.StopCapture();
-            _cameraService.Dispose();
 
             await _streamService.StopAsync();
 
@@ -222,7 +193,6 @@ namespace Client.ViewModels
                 action: "stop",
                 level: "info");
 
-            CurrentFrame = null;
             StatusText = "Поток с камеры остановлен";
         }
 

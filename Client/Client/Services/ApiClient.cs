@@ -40,7 +40,7 @@ public class ApiClient : IApiClient
 
     public async Task<T?> PostAsync<T>(string endpoint, object data)
     {
-        var response = await _httpClient.PostAsJsonAsync(BuildUri(endpoint), data);
+        var response = await _httpClient.PostAsync(BuildUri(endpoint), JsonContent.Create(data, data.GetType()));
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<T>();
     }
@@ -107,7 +107,8 @@ public class ApiClient : IApiClient
 
     private Uri BuildUri(string endpoint)
     {
-        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var absoluteUri))
+        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var absoluteUri)
+            && (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps))
             return absoluteUri;
 
         return new Uri(new Uri(_baseUrl.TrimEnd('/') + "/"), endpoint.TrimStart('/'));

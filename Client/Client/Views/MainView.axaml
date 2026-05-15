@@ -122,19 +122,45 @@
                                     ClipToBounds="True">
                                 <Grid RowDefinitions="*,Auto">
                                     <Grid Grid.Row="0"
+                                          x:Name="VideoGrid"
                                           Background="Black"
-                                          ClipToBounds="True">
+                                          ClipToBounds="True"
+                                          SizeChanged="VideoGrid_SizeChanged">
                                         <media:VideoView x:Name="VideoPlayer"
                                                          Source="{Binding VideoPath}"
-                                                         IsVisible="{Binding IsRawVideoVisible}"
                                                          HorizontalAlignment="Stretch"
                                                          VerticalAlignment="Stretch"/>
-
-                                        <Image Source="{Binding AnnotatedFrame}"
-                                               IsVisible="{Binding IsAnnotatedFrameVisible}"
-                                               Stretch="Uniform"
-                                               HorizontalAlignment="Stretch"
-                                               VerticalAlignment="Stretch"/>
+                                        <ItemsControl ItemsSource="{Binding OverlayDetections}"
+                                                      IsHitTestVisible="False"
+                                                      HorizontalAlignment="Stretch"
+                                                      VerticalAlignment="Stretch">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><Grid/></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Canvas Width="0" Height="0"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Top"
+                                                            IsHitTestVisible="False">
+                                                        <Border BorderBrush="#FFFF0000"
+                                                                BorderThickness="2"
+                                                                Canvas.Left="{Binding Left}"
+                                                                Canvas.Top="{Binding Top}"
+                                                                Width="{Binding Width}"
+                                                                Height="{Binding Height}"
+                                                                IsHitTestVisible="False">
+                                                            <TextBlock Text="{Binding Label}"
+                                                                       Foreground="#FFFF0000"
+                                                                       Background="#80000000"
+                                                                       FontSize="10"
+                                                                       Padding="2,0"
+                                                                       VerticalAlignment="Top"/>
+                                                        </Border>
+                                                    </Canvas>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </Grid>
 
                                     <Border Grid.Row="1"
