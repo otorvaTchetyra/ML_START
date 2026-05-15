@@ -31,12 +31,6 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
     {
         InitializeComponent();
         DataContextChanged += (_, _) => BindViewModel();
-        DetachedFromVisualTree += (_, _) =>
-        {
-            _mediaPlayer?.Stop();
-            _mediaPlayer?.Dispose();
-            _libVlc?.Dispose();
-        };
         InitVlc();
     }
 

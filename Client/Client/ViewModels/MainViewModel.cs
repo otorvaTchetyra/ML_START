@@ -414,6 +414,7 @@ namespace Client.ViewModels
                 CurrentFrameInfo = frame;
                 RebuildOverlayDetections(frame);
                 StatusText = $"Кадр {frame.Frame_index}: гранул {frame.Granule_count}, детектов {frame.bboxes.Count}, оверлей {OverlayDetections.Count}, вьюпорт {_videoViewportWidth:F0}x{_videoViewportHeight:F0}, источник {_videoSourceWidth}x{_videoSourceHeight}";
+
             });
 
             if (alert)
