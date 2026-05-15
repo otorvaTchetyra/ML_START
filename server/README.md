@@ -431,3 +431,31 @@ pytest tests/ -v
 | `Client/Services/UsersService.cs` | Метод `UpdateUserAsync` — вызов `PUT /auth/users/{id}` |
 | `Client/ViewModels/AdminUsersViewModel.cs` | Поля и команды редактирования; переключатели видимости паролей |
 | `Client/Views/AdminUsersView.axaml` | Панель редактирования; глаз на полях пароля; Enter для создания |
+
+---
+
+## Безопасность: rate limiting и смена JWT-ключа. Фикс утечки сессии при выходе
+**Дата:** 15.05.2026  
+**Статус:** Выполнено
+
+### Что реализовано
+
+**Rate limiting на endpoint входа.** С помощью библиотеки `slowapi` добавлено ограничение: не более 5 запросов к `POST /auth/login` в минуту с одного IP. При превышении сервер возвращает `HTTP 429 Too Many Requests` с заголовком `Retry-After`.
+
+**Отображение попыток и таймера на клиенте.** После каждой неудачной попытки входа показывается оранжевое предупреждение «Осталось попыток: X». При получении 429 от сервера — красный баннер с обратным отсчётом «Повторите через Xs», кнопка «Войти» блокируется до окончания таймера.
+
+**Замена JWT secret key.** На сервере в файле `.env` заменён слабый ключ `super-secret-key-dronevision-2026` на случайный 64-символьный hex-ключ. Файл `.env` не попадает в git (`.gitignore`). Все ранее выданные токены автоматически инвалидировались.
+
+**Фикс утечки сессии при выходе.** При нажатии «Выйти» в `MainViewModel` не вызывался `StopVideoAndAnalysisAsync` — `StreamService` продолжал читать поток и вызывать колбэк `OnStreamFrame` со старого экземпляра VM. Это приводило к тому, что алерт срабатывал на экране авторизации и в новой сессии другого пользователя. Исправлено: перед logout и перед навигацией в «Настройки»/«Стрим» теперь принудительно вызывается остановка анализа и сброс `IsAlertActive`.
+
+### Файлы
+
+| Файл | Описание |
+|------|----------|
+| `server/main.py` | Подключение `slowapi`, регистрация `limiter` и обработчика `RateLimitExceeded` |
+| `server/api/auth.py` | Декоратор `@limiter.limit("5/minute")` на endpoint `/auth/login` |
+| `server/requirements.txt` | Добавлена зависимость `slowapi==0.1.9` |
+| `Client/Services/AuthService.cs` | Новый тип `LoginResult`; чтение заголовка `Retry-After` из 429-ответа |
+| `Client/ViewModels/LoginViewModel.cs` | Счётчик попыток; таймер обратного отсчёта; блокировка кнопки при rate limit |
+| `Client/Views/LoginView.axaml` | Оранжевый баннер попыток; красный баннер таймера |
+| `Client/ViewModels/MainViewModel.cs` | Вызов `StopVideoAndAnalysisAsync` и сброс алерта при logout и навигации |

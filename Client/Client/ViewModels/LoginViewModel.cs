@@ -1,11 +1,8 @@
-﻿using Avalonia.Platform;
+﻿using Avalonia.Threading;
 using Client.Services;
 using ReactiveUI;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reactive;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Client.ViewModels
@@ -38,6 +35,11 @@ namespace Client.ViewModels
         private string _errorMessage = string.Empty;
         private bool _isLoading;
         private bool _isPasswordVisible;
+        private int _failedAttempts;
+        private int _countdownSeconds;
+        private System.Threading.Timer? _countdownTimer;
+
+        private const int MaxAttempts = 5;
 
         public string Email
         {
@@ -75,6 +77,11 @@ namespace Client.ViewModels
             set => this.RaiseAndSetIfChanged(ref _isPasswordVisible, value);
         }
 
+        public bool IsRateLimited => _countdownSeconds > 0;
+        public bool HasAttemptsWarning => _failedAttempts > 0 && _countdownSeconds == 0;
+        public string AttemptsText => $"Осталось попыток: {MaxAttempts - _failedAttempts}";
+        public string CountdownText => $"Слишком много попыток. Повторите через {_countdownSeconds} с";
+
         public ReactiveCommand<Unit, Unit> LoginCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToRegisterCommand { get; }
         public ReactiveCommand<Unit, Unit> TogglePasswordCommand { get; }
@@ -97,6 +104,8 @@ namespace Client.ViewModels
 
         private async Task LoginAsync()
         {
+            if (IsRateLimited) return;
+
             if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
             {
                 ErrorMessage = "Введите логин и пароль";
@@ -106,12 +115,20 @@ namespace Client.ViewModels
             IsLoading = true;
             ErrorMessage = string.Empty;
 
-            var success = await _authService.LoginAsync(Email, Password);
+            var result = await _authService.LoginAsync(Email, Password);
 
             IsLoading = false;
 
-            if (success)
+            if (result.IsRateLimited)
             {
+                StartCountdown(result.RetryAfterSeconds);
+                return;
+            }
+
+            if (result.Success)
+            {
+                _failedAttempts = 0;
+                this.RaisePropertyChanged(nameof(HasAttemptsWarning));
                 _ = _journalService.RecordAsync(
                     eventCode: "login_success",
                     message: $"Пользователь {Email} вошёл в приложение",
@@ -126,6 +143,9 @@ namespace Client.ViewModels
             }
             else
             {
+                _failedAttempts++;
+                this.RaisePropertyChanged(nameof(AttemptsText));
+                this.RaisePropertyChanged(nameof(HasAttemptsWarning));
                 _ = _journalService.RecordAsync(
                     eventCode: "login_failed",
                     message: $"Неудачная попытка входа для пользователя {Email}",
@@ -135,6 +155,36 @@ namespace Client.ViewModels
                     usernameSnapshot: Email);
                 ErrorMessage = "Неверный логин или пароль";
             }
+        }
+
+        private void StartCountdown(int seconds)
+        {
+            _countdownSeconds = seconds;
+            this.RaisePropertyChanged(nameof(IsRateLimited));
+            this.RaisePropertyChanged(nameof(CountdownText));
+            this.RaisePropertyChanged(nameof(HasAttemptsWarning));
+
+            _countdownTimer?.Dispose();
+            _countdownTimer = new System.Threading.Timer(_ =>
+            {
+                if (_countdownSeconds > 0)
+                    _countdownSeconds--;
+
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    this.RaisePropertyChanged(nameof(CountdownText));
+                    this.RaisePropertyChanged(nameof(IsRateLimited));
+                    this.RaisePropertyChanged(nameof(HasAttemptsWarning));
+
+                    if (_countdownSeconds == 0)
+                    {
+                        _failedAttempts = 0;
+                        this.RaisePropertyChanged(nameof(AttemptsText));
+                        _countdownTimer?.Dispose();
+                        _countdownTimer = null;
+                    }
+                });
+            }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         }
 
         private async Task GoToRegisterAsync()
