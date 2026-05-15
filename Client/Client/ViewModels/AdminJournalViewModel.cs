@@ -125,7 +125,6 @@ public class AdminJournalViewModel : ViewModelBase, IRoutableViewModel
         }
         catch
         {
-            // список пользователей с сервера необязателен для фильтра
         }
 
         var fromJournal = await _journalService.GetDistinctJournalUsernamesAsync();

@@ -40,7 +40,7 @@ public class ApiClient : IApiClient
 
     public async Task<T?> PostAsync<T>(string endpoint, object data)
     {
-        var response = await _httpClient.PostAsJsonAsync(BuildUri(endpoint), data);
+        var response = await _httpClient.PostAsync(BuildUri(endpoint), JsonContent.Create(data, data.GetType()));
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<T>();
     }
@@ -62,11 +62,13 @@ public class ApiClient : IApiClient
         return response;
     }
 
-    public async Task<HttpResponseMessage> PostFileAsync(string endpoint, string filePath, string formFieldName = "file")
+    public async Task<HttpResponseMessage> PostFileAsync(string endpoint, string filePath, string formFieldName = "file", IProgress<double>? progress = null)
     {
         await using var fs = File.OpenRead(filePath);
+        using var progressStream = progress != null ? new ProgressStream(fs, fs.Length, progress) : null;
+        Stream uploadStream = progressStream ?? (Stream)fs;
         using var content = new MultipartFormDataContent();
-        using var fileContent = new StreamContent(fs);
+        using var fileContent = new StreamContent(uploadStream);
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         content.Add(fileContent, formFieldName, Path.GetFileName(filePath));
 
@@ -107,7 +109,8 @@ public class ApiClient : IApiClient
 
     private Uri BuildUri(string endpoint)
     {
-        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var absoluteUri))
+        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var absoluteUri)
+            && (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps))
             return absoluteUri;
 
         return new Uri(new Uri(_baseUrl.TrimEnd('/') + "/"), endpoint.TrimStart('/'));

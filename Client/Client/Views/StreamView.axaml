@@ -52,10 +52,6 @@
                     </Grid.RowDefinitions>
 
                     <Grid Grid.Row="0">
-                        <Image Source="{Binding CurrentFrame}"
-                               HorizontalAlignment="Stretch"
-                               VerticalAlignment="Stretch"/>
-
                         <ItemsControl ItemsSource="{Binding CurrentFrameInfo.bboxes}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>

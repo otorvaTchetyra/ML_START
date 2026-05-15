@@ -37,6 +37,7 @@ namespace Client.ViewModels
         private string _password = string.Empty;
         private string _errorMessage = string.Empty;
         private bool _isLoading;
+        private bool _isPasswordVisible;
 
         public string Email
         {
@@ -68,8 +69,15 @@ namespace Client.ViewModels
             set => this.RaiseAndSetIfChanged(ref _isLoading, value);
         }
 
+        public bool IsPasswordVisible
+        {
+            get => _isPasswordVisible;
+            set => this.RaiseAndSetIfChanged(ref _isPasswordVisible, value);
+        }
+
         public ReactiveCommand<Unit, Unit> LoginCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToRegisterCommand { get; }
+        public ReactiveCommand<Unit, Unit> TogglePasswordCommand { get; }
 
         public LoginViewModel(
             IScreen screen,
@@ -84,6 +92,7 @@ namespace Client.ViewModels
 
             LoginCommand = ReactiveCommand.CreateFromTask(LoginAsync);
             GoToRegisterCommand = ReactiveCommand.CreateFromTask(GoToRegisterAsync);
+            TogglePasswordCommand = ReactiveCommand.Create(() => { IsPasswordVisible = !IsPasswordVisible; });
         }
 
         private async Task LoginAsync()

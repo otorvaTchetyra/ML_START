@@ -14,5 +14,7 @@ namespace Client.Models
         public bool Threshold_exceeded { get; set; }
         public bool Out_of_schedule { get; set; }
         public List<DetectionBbox> bboxes { get; set; } = new();
+        public int Source_width { get; set; }
+        public int Source_height { get; set; }
     }
 }

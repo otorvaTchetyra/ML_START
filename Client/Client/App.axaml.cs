@@ -77,7 +77,6 @@ namespace Client
                     }
                     catch
                     {
-                        // Журнал не должен мешать запуску приложения.
                     }
                 });
             }
@@ -89,7 +88,8 @@ namespace Client
         private IServiceProvider CreateContainer()
         {
             IConfiguration configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json")
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: true)
                 .Build();
 
             ApplyTheme(configuration["Theme"] ?? "Dark");
