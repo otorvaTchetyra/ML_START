@@ -333,8 +333,9 @@ namespace Client.ViewModels
             try
             {
                 OverlayDetections.Clear();
-                _videoSourceWidth = 0;
-                _videoSourceHeight = 0;
+                var (fw, fh) = VideoDimensionReader.TryRead(VideoPath);
+                _videoSourceWidth = fw;
+                _videoSourceHeight = fh;
                 await _streamService.SendVideoAsync(VideoPath, OnStreamFrame);
                 _isAnalysisActive = true;
                 StatusText = "Анализ видео запущен";
@@ -412,7 +413,7 @@ namespace Client.ViewModels
 
                 CurrentFrameInfo = frame;
                 RebuildOverlayDetections(frame);
-                StatusText = $"Кадр {frame.Frame_index}: гранул {frame.Granule_count}, детектов {frame.bboxes.Count}";
+                StatusText = $"Кадр {frame.Frame_index}: гранул {frame.Granule_count}, детектов {frame.bboxes.Count}, оверлей {OverlayDetections.Count}, вьюпорт {_videoViewportWidth:F0}x{_videoViewportHeight:F0}, источник {_videoSourceWidth}x{_videoSourceHeight}";
             });
 
             if (alert)

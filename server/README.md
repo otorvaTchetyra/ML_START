@@ -222,3 +222,50 @@ pytest tests/ -v
 | `Client/Services/ApiClient.cs` | Исправлены `BuildUri` (проверка схемы) и `PostAsync` (корректная сериализация) |
 | `Client/Models/LoginRequest.cs` | Добавлены `[JsonPropertyName]` для совместимости с сервером |
 | `Client/appsettings.json` | Адрес сервера указывает на `http://185.125.102.24:8000` |
+
+---
+
+## Поправки: Software rendering оверлея и исправление настроек
+**Дата:** 15.05.2026  
+**Статус:** Выполнено
+
+### Проблемы, которые были выявлены
+
+1. **Боксы детекций не отображались.** Оверлей на Canvas добавлялся корректно (логи подтверждали наличие прямоугольников), но LibVLC создаёт нативное X11-окно поверх Avalonia — так называемая проблема airspace. Нативное окно перекрывает все управляемые элементы Avalonia, в том числе Canvas с боксами.
+2. **Настройки не сохранялись.** `ConfigurationService` использовал относительный путь `"appsettings.json"`. CWD процесса при запуске через `dotnet run` — родительская директория решения, а не директория проекта. `File.Exists("appsettings.json")` возвращал `false`, запись в файл не производилась.
+3. **При переходе в настройки и обратно видео пропадало.** `NavigateToMainAsync()` каждый раз создавал новый экземпляр `MainViewModel` (Transient), старый с установленным `VideoPath` выбрасывался.
+4. **Ошибка при сохранении настроек.** Файл сохранялся успешно, но последующий вызов `_apiClient.PatchAsync` выбрасывал исключение — весь блок `try` завершался с ошибкой, и пользователь видел сообщение об ошибке вместо подтверждения сохранения.
+5. **Некорректное значение IoU в файле.** В `appsettings.json` поле `"Iou"` имело значение `"0,45"` с запятой (русская локаль). `float.Parse` с `CultureInfo.InvariantCulture` не мог распарсить значение.
+
+### Что реализовано
+
+**Переход на software rendering в LibVLC.**
+
+Вместо `VideoView` (нативное окно) теперь используется `Image` с `WriteableBitmap`. LibVLC декодирует кадры в буфер памяти через `SetVideoFormatCallbacks` / `SetVideoCallbacks` (формат BGRA), буфер копируется в `WriteableBitmap` на UI-потоке. Canvas с детекциями лежит поверх `Image` как обычный Avalonia-элемент — проблема airspace устранена.
+
+**Исправление пути к файлу настроек.**
+
+В `ConfigurationService` путь к файлу заменён на `Path.Combine(AppContext.BaseDirectory, "appsettings.json")` — всегда указывает на директорию бинарника, где файл гарантированно присутствует. Аналогичный `SetBasePath(AppContext.BaseDirectory)` добавлен в `ConfigurationBuilder` при старте приложения.
+
+**Возврат к видео без пересоздания ViewModel.**
+
+В `SettingsViewModel.GoToMainAsync` вместо `NavigateToMainAsync()` (создаёт новый VM) теперь вызывается `HostScreen.Router.NavigateBack.Execute()` — навигация возвращается к уже существующему `MainViewModel` на стеке. В `MainView.BindViewModel()` добавлен вызов `PlayPath(vm.VideoPath)` при привязке к VM с уже установленным путём — видео возобновляется после пересоздания View.
+
+**Разделение сохранения файла и вызова API.**
+
+Запись в файл вынесена до вызова `PatchAsync`. Успех сохранения показывается сразу после записи файла. Если сервер недоступен, выводится предупреждение "Настройки сохранены (сервер недоступен)" — локальные настройки при этом уже записаны.
+
+**Исправление значения IoU.**
+
+В `appsettings.json` исправлено `"0,45"` → `"0.45"`.
+
+### Файлы
+
+| Файл | Описание |
+|------|----------|
+| `Client/Views/MainView.axaml` | Заменён `media:VideoView` на `Image x:Name="VideoImage"` |
+| `Client/Views/MainView.axaml.cs` | Software rendering: `VideoFormatCallback`, `LockCallback`, `DisplayCallback`; `PlayPath`; `BindViewModel` с восстановлением видео |
+| `Client/ViewModels/SettingsViewModel.cs` | `GoToMainAsync` через `NavigateBack`; сохранение файла отделено от вызова API |
+| `Client/Services/ConfigurationService.cs` | Путь к файлу через `AppContext.BaseDirectory`; `BuildConfig` с `SetBasePath` |
+| `Client/App.axaml.cs` | `ConfigurationBuilder` с `SetBasePath(AppContext.BaseDirectory)` |
+| `Client/appsettings.json` | Исправлено `"Iou": "0,45"` → `"0.45"` |

@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Client.ViewModels"
-             xmlns:media="using:Iciclecreek.Avalonia.Controls.Media"
+             xmlns:models="using:Client.Models"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
@@ -126,60 +126,42 @@
                                           Background="Black"
                                           ClipToBounds="True"
                                           SizeChanged="VideoGrid_SizeChanged">
-                                        <media:VideoView x:Name="VideoPlayer"
-                                                         Source="{Binding VideoPath}"
-                                                         HorizontalAlignment="Stretch"
-                                                         VerticalAlignment="Stretch"/>
-                                        <ItemsControl ItemsSource="{Binding OverlayDetections}"
-                                                      IsHitTestVisible="False"
-                                                      HorizontalAlignment="Stretch"
-                                                      VerticalAlignment="Stretch">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate><Grid/></ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Canvas Width="0" Height="0"
-                                                            HorizontalAlignment="Left"
-                                                            VerticalAlignment="Top"
-                                                            IsHitTestVisible="False">
-                                                        <Border BorderBrush="#FFFF0000"
-                                                                BorderThickness="2"
-                                                                Canvas.Left="{Binding Left}"
-                                                                Canvas.Top="{Binding Top}"
-                                                                Width="{Binding Width}"
-                                                                Height="{Binding Height}"
-                                                                IsHitTestVisible="False">
-                                                            <TextBlock Text="{Binding Label}"
-                                                                       Foreground="#FFFF0000"
-                                                                       Background="#80000000"
-                                                                       FontSize="10"
-                                                                       Padding="2,0"
-                                                                       VerticalAlignment="Top"/>
-                                                        </Border>
-                                                    </Canvas>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                                        <Image x:Name="VideoImage"
+                                               Stretch="Uniform"
+                                               HorizontalAlignment="Stretch"
+                                               VerticalAlignment="Stretch"/>
+                                        <Canvas x:Name="OverlayCanvas"
+                                                IsHitTestVisible="False"
+                                                HorizontalAlignment="Stretch"
+                                                VerticalAlignment="Stretch"/>
                                     </Grid>
 
                                     <Border Grid.Row="1"
                                             Background="{DynamicResource FieldBrush}"
-                                            Padding="0,10,0,10">
-                                        <StackPanel HorizontalAlignment="Right"
-                                                    Orientation="Horizontal"
-                                                    Spacing="10"
-                                                    Margin="0,0,12,0">
-                                            <Button Classes="player-control"
-                                                    Content="▶"
-                                                    Click="Play_Click"/>
-                                            <Button Classes="player-control"
-                                                    Content="⏸"
-                                                    Click="Pause_Click"/>
-                                            <Button Classes="player-control"
-                                                    Content="⏹"
-                                                    Click="Stop_Click"/>
-                                        </StackPanel>
+                                            Padding="8,10,8,10">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding StatusText}"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       FontSize="11"
+                                                       VerticalAlignment="Center"
+                                                       TextWrapping="NoWrap"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Grid.Column="1"
+                                                        Orientation="Horizontal"
+                                                        Spacing="10"
+                                                        Margin="8,0,4,0">
+                                                <Button Classes="player-control"
+                                                        Content="▶"
+                                                        Click="Play_Click"/>
+                                                <Button Classes="player-control"
+                                                        Content="⏸"
+                                                        Click="Pause_Click"/>
+                                                <Button Classes="player-control"
+                                                        Content="⏹"
+                                                        Click="Stop_Click"/>
+                                            </StackPanel>
+                                        </Grid>
                                     </Border>
                                 </Grid>
                             </Border>

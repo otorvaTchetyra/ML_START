@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Net.Http;
 using System.Reactive;
+using System.Reactive.Linq;
 using System.Threading.Tasks;
 
 namespace Client.ViewModels
@@ -130,7 +131,10 @@ namespace Client.ViewModels
 
         private async Task GoToMainAsync()
         {
-            await _navigationService.NavigateToMainAsync();
+            if (HostScreen.Router.NavigationStack.Count > 1)
+                await HostScreen.Router.NavigateBack.Execute();
+            else
+                await _navigationService.NavigateToMainAsync();
         }
 
         private async Task GoToStreamAsync()
@@ -177,23 +181,23 @@ namespace Client.ViewModels
 
         private async Task SaveSettingsAsync()
         {
+            IsStatusVisible = true;
+            StatusMessage = "Сохранение настроек...";
+            StatusMessageColor = Brushes.Gray;
+
+            var theme = SelectedTheme == "Светлая" ? "Light" : "Dark";
+            _configurationService.SaveApiUrl(UrlServerPath);
+            _configurationService.SaveSettings(Confidence, Iou, theme);
+            global::Client.App.ApplyTheme(theme);
+
+            StatusMessage = "Настройки сохранены";
+            StatusMessageColor = Brushes.Green;
+
             try
             {
-                IsStatusVisible = true;
-                StatusMessage = "Сохранение настроек...";
-                StatusMessageColor = Brushes.Gray;
-
-                _configurationService.SaveApiUrl(UrlServerPath);
-                var theme = SelectedTheme == "Светлая" ? "Light" : "Dark";
-                _configurationService.SaveSettings(Confidence, Iou, theme);
-                global::Client.App.ApplyTheme(theme);
                 await _apiClient.PatchAsync<object>(
                     "/settings",
-                    new
-                    {
-                        model_confidence = Confidence,
-                        model_iou = Iou
-                    });
+                    new { model_confidence = Confidence, model_iou = Iou });
 
                 await _journalService.RecordAsync(
                     eventCode: "settings_saved",
@@ -203,18 +207,15 @@ namespace Client.ViewModels
                     level: "info",
                     detailsJson: $"{{\"apiUrl\":\"{UrlServerPath}\",\"confidence\":{Confidence.ToString(CultureInfo.InvariantCulture)},\"iou\":{Iou.ToString(CultureInfo.InvariantCulture)},\"theme\":\"{theme}\"}}",
                     usernameSnapshot: _authService.CurrentUser?.Username);
-
-                StatusMessage = "Настройки успешно сохранены";
-                StatusMessageColor = Brushes.Green;
-
-                await Task.Delay(2000);
-                IsStatusVisible = false;
             }
-            catch (Exception ex)
+            catch
             {
-                StatusMessage = $"Ошибка сохранения: {ex.Message}";
-                StatusMessageColor = Brushes.Red;
+                StatusMessage = "Настройки сохранены (сервер недоступен)";
+                StatusMessageColor = Brushes.Orange;
             }
+
+            await Task.Delay(2000);
+            IsStatusVisible = false;
         }
 
         private async Task TestConnectionAsync()
