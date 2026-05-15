@@ -26,6 +26,7 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
     private byte[]? _frameBuffer;
     private GCHandle _frameHandle;
     private int _vlcW, _vlcH;
+    private readonly object _frameLock = new();
 
     public MainView()
     {
@@ -74,23 +75,35 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
 
     private void VideoCleanupCallback(ref IntPtr opaque)
     {
-        if (_frameHandle.IsAllocated) _frameHandle.Free();
+        lock (_frameLock)
+        {
+            if (_frameHandle.IsAllocated) _frameHandle.Free();
+            _frameBuffer = null;
+        }
     }
 
     private IntPtr LockCallback(IntPtr opaque, IntPtr planes)
     {
-        if (_frameHandle.IsAllocated)
-            Marshal.WriteIntPtr(planes, _frameHandle.AddrOfPinnedObject());
+        lock (_frameLock)
+        {
+            if (_frameHandle.IsAllocated)
+                Marshal.WriteIntPtr(planes, _frameHandle.AddrOfPinnedObject());
+        }
         return IntPtr.Zero;
     }
 
     private void DisplayCallback(IntPtr opaque, IntPtr picture)
     {
-        var buf = _frameBuffer;
+        byte[]? copy;
+        lock (_frameLock)
+        {
+            var buf = _frameBuffer;
+            if (buf == null) return;
+            copy = new byte[buf.Length];
+            Buffer.BlockCopy(buf, 0, copy, 0, copy.Length);
+        }
         var bmp = _videoBitmap;
-        if (buf == null || bmp == null) return;
-        var copy = new byte[buf.Length];
-        Buffer.BlockCopy(buf, 0, copy, 0, copy.Length);
+        if (bmp == null) return;
         Dispatcher.UIThread.Post(() =>
         {
             try
