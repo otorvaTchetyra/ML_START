@@ -158,6 +158,8 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
         raise HTTPException(status_code=400, detail="Не удалось открыть источник видео")
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    src_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    src_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     frame_index = 0
 
     try:
@@ -210,6 +212,8 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
                     BBox(x1=d.x1, y1=d.y1, x2=d.x2, y2=d.y2, confidence=d.confidence)
                     for d in detections
                 ],
+                source_width=src_width,
+                source_height=src_height,
             )
 
             jpeg = _render_overlay(frame, detections, result.granule_count,

@@ -45,6 +45,8 @@ class FrameAnalysisResponse(BaseModel):
     threshold_exceeded: bool
     out_of_schedule: bool
     bboxes: list[BBox]
+    source_width: int = 0
+    source_height: int = 0
 
 
 # ── Feeding events ────────────────────────────────────────────────────────────
