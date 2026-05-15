@@ -1,4 +1,5 @@
 using Avalonia.Media;
+using Client.Models;
 using Client.Services;
 using ReactiveUI;
 using System;
@@ -30,6 +31,7 @@ namespace Client.ViewModels
         private bool _isTestingConnection;
         private float _confidence = 0.3f;
         private float _iou = 0.45f;
+        private int _granuleThreshold = 50;
         private string _selectedTheme = "Темная";
         private string _statusMessage = string.Empty;
         private IBrush _statusMessageColor = Brushes.Transparent;
@@ -63,6 +65,12 @@ namespace Client.ViewModels
         {
             get => _iou;
             set => this.RaiseAndSetIfChanged(ref _iou, value);
+        }
+
+        public int GranuleThreshold
+        {
+            get => _granuleThreshold;
+            set => this.RaiseAndSetIfChanged(ref _granuleThreshold, value);
         }
 
         public ObservableCollection<string> ThemeOptions { get; } = new()
@@ -176,7 +184,21 @@ namespace Client.ViewModels
                 SelectedTheme = "Темная";
             }
 
-            await Task.CompletedTask;
+            _ = LoadServerSettingsAsync();
+        }
+
+        private async Task LoadServerSettingsAsync()
+        {
+            try
+            {
+                var serverSettings = await _apiClient.GetAsync<ServerSettingsResponse>("/settings");
+                if (serverSettings != null)
+                    GranuleThreshold = serverSettings.GranuleThreshold;
+            }
+            catch
+            {
+                GranuleThreshold = 50;
+            }
         }
 
         private async Task SaveSettingsAsync()
@@ -187,7 +209,6 @@ namespace Client.ViewModels
 
             var theme = SelectedTheme == "Светлая" ? "Light" : "Dark";
             _configurationService.SaveApiUrl(UrlServerPath);
-            _configurationService.SaveSettings(Confidence, Iou, theme);
             global::Client.App.ApplyTheme(theme);
 
             StatusMessage = "Настройки сохранены";
@@ -197,7 +218,8 @@ namespace Client.ViewModels
             {
                 await _apiClient.PatchAsync<object>(
                     "/settings",
-                    new { model_confidence = Confidence, model_iou = Iou });
+                    new { model_confidence = Confidence, model_iou = Iou, granule_threshold = GranuleThreshold });
+                _configurationService.SaveSettings(Confidence, Iou, theme);
 
                 await _journalService.RecordAsync(
                     eventCode: "settings_saved",

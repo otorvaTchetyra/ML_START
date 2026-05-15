@@ -1,7 +1,5 @@
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.ReactiveUI;
@@ -11,6 +9,7 @@ using LibVLCSharp.Shared;
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Client;
@@ -25,9 +24,12 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
     private WriteableBitmap? _videoBitmap;
     private IntPtr _unmanagedBuffer = IntPtr.Zero;
     private int _unmanagedBufferSize;
+    private byte[]? _managedBuffer;
     private int _vlcW, _vlcH;
     private readonly object _frameLock = new();
-    private bool _ignoreEndReached;
+    private volatile bool _ignoreEndReached;
+    private long _lastFrameTicks;
+    private const long FrameIntervalTicks = TimeSpan.TicksPerMillisecond * 33;
 
     public MainView()
     {
@@ -49,11 +51,12 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
     private void OnVideoEndReached(object? sender, EventArgs e)
     {
         if (_ignoreEndReached) return;
+        _wasStopped = true;
         Dispatcher.UIThread.Post(async () =>
         {
             VideoImage.Source = null;
             if (DataContext is MainViewModel vm)
-                await vm.StopVideoAndAnalysisAsync();
+                await vm.StopVideoAndAnalysisAsync(videoEnded: true);
         });
     }
 
@@ -70,6 +73,7 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
                 Marshal.FreeHGlobal(_unmanagedBuffer);
             _unmanagedBuffer = Marshal.AllocHGlobal(size);
             _unmanagedBufferSize = size;
+            _managedBuffer = new byte[size];
         }
 
         pitches = (uint)(_vlcW * 4);
@@ -100,6 +104,7 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
                 Marshal.FreeHGlobal(_unmanagedBuffer);
                 _unmanagedBuffer = IntPtr.Zero;
                 _unmanagedBufferSize = 0;
+                _managedBuffer = null;
             }
         }
     }
@@ -116,21 +121,27 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
 
     private void DisplayCallback(IntPtr opaque, IntPtr picture)
     {
-        byte[]? copy;
+        var now = DateTime.UtcNow.Ticks;
+        if (now - Interlocked.Read(ref _lastFrameTicks) < FrameIntervalTicks) return;
+        Interlocked.Exchange(ref _lastFrameTicks, now);
+
+        byte[]? buf;
+        int len;
         lock (_frameLock)
         {
-            if (_unmanagedBuffer == IntPtr.Zero || _unmanagedBufferSize == 0) return;
-            copy = new byte[_unmanagedBufferSize];
-            Marshal.Copy(_unmanagedBuffer, copy, 0, _unmanagedBufferSize);
+            if (_unmanagedBuffer == IntPtr.Zero || _managedBuffer == null) return;
+            buf = _managedBuffer;
+            len = buf.Length;
+            Marshal.Copy(_unmanagedBuffer, buf, 0, len);
         }
-        var bmp = _videoBitmap;
-        if (bmp == null) return;
         Dispatcher.UIThread.Post(() =>
         {
+            var bmp = _videoBitmap;
+            if (bmp == null) return;
             try
             {
                 using var fb = bmp.Lock();
-                Marshal.Copy(copy, 0, fb.Address, copy.Length);
+                Marshal.Copy(buf, 0, fb.Address, len);
             }
             catch { }
         }, DispatcherPriority.Render);
@@ -149,34 +160,19 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
         {
             if (VideoGrid.Bounds.Width > 0)
                 vm.UpdateVideoViewport(VideoGrid.Bounds.Width, VideoGrid.Bounds.Height);
-            if (!string.IsNullOrWhiteSpace(vm.VideoPath))
-                PlayPath(vm.VideoPath);
+            if (!string.IsNullOrWhiteSpace(vm.VideoPath) && _mediaPlayer?.IsPlaying != true)
+                _ = PlayPath(vm.VideoPath);
         }
 
-        RebuildOverlayCanvas();
+        UpdateOverlay();
     }
 
-    private void RebuildOverlayCanvas()
+    private void UpdateOverlay()
     {
-        OverlayCanvas.Children.Clear();
-        if (DataContext is not MainViewModel vm) return;
-        var red = new SolidColorBrush(Color.FromRgb(255, 50, 50));
-        foreach (var d in vm.OverlayDetections)
-        {
-            var w = Math.Max(d.Width, 16);
-            var h = Math.Max(d.Height, 16);
-            var rect = new Rectangle
-            {
-                Width = w,
-                Height = h,
-                Stroke = red,
-                StrokeThickness = 3,
-                Fill = new SolidColorBrush(Color.FromArgb(80, 255, 50, 50))
-            };
-            Canvas.SetLeft(rect, d.Left - (w - d.Width) / 2);
-            Canvas.SetTop(rect, d.Top - (h - d.Height) / 2);
-            OverlayCanvas.Children.Add(rect);
-        }
+        if (DataContext is MainViewModel vm)
+            OverlayControl.Update(vm.OverlayDetections);
+        else
+            OverlayControl.Update(Array.Empty<Client.Models.OverlayDetection>());
     }
 
     private async void ViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -184,7 +180,7 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
         if (sender is not MainViewModel vm) return;
         if (e.PropertyName == nameof(MainViewModel.OverlayDetections))
         {
-            RebuildOverlayCanvas();
+            UpdateOverlay();
             return;
         }
         if (e.PropertyName != nameof(MainViewModel.VideoPath))
@@ -192,6 +188,7 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
 
         if (string.IsNullOrWhiteSpace(vm.VideoPath))
         {
+            _ignoreEndReached = true;
             _mediaPlayer?.Stop();
             VideoImage.Source = null;
             return;
@@ -199,19 +196,19 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
 
         _wasStopped = false;
         await Task.Delay(100);
-        PlayPath(vm.VideoPath);
+        await PlayPath(vm.VideoPath);
     }
 
-    private async void PlayPath(string path)
+    private async Task PlayPath(string path)
     {
         if (_mediaPlayer == null || _libVlc == null) return;
         _ignoreEndReached = true;
         _mediaPlayer.Stop();
-        await Task.Delay(150);
-        _ignoreEndReached = false;
+        await Task.Delay(300);
         var media = new Media(_libVlc, path, FromType.FromPath);
         _mediaPlayer.Media = media;
         media.Dispose();
+        _ignoreEndReached = false;
         _mediaPlayer.Play();
     }
 
@@ -219,11 +216,15 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
     {
         if (DataContext is MainViewModel startVm)
         {
-            await RestartStoppedPlayerAsync(startVm);
+            bool restarted = await RestartStoppedPlayerAsync(startVm);
             await startVm.StartVideoAndAnalysisAsync();
+            if (!restarted)
+                _mediaPlayer?.Play();
         }
-
-        _mediaPlayer?.Play();
+        else
+        {
+            _mediaPlayer?.Play();
+        }
         if (DataContext is MainViewModel vm)
             await vm.LogPlaybackActionAsync("play", "Запущено воспроизведение видео");
     }
@@ -240,6 +241,7 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
 
     private async void Stop_Click(object sender, RoutedEventArgs e)
     {
+        _ignoreEndReached = true;
         _mediaPlayer?.Stop();
         _wasStopped = true;
         if (DataContext is MainViewModel vm)
@@ -255,14 +257,12 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
             vm.UpdateVideoViewport(e.NewSize.Width, e.NewSize.Height);
     }
 
-    private async Task RestartStoppedPlayerAsync(MainViewModel vm)
+    private async Task<bool> RestartStoppedPlayerAsync(MainViewModel vm)
     {
         if (!_wasStopped || string.IsNullOrWhiteSpace(vm.VideoPath))
-            return;
-        _mediaPlayer?.Stop();
-        await Task.Delay(100);
-        PlayPath(vm.VideoPath);
-        await Task.Delay(100);
+            return false;
+        await PlayPath(vm.VideoPath);
         _wasStopped = false;
+        return true;
     }
 }

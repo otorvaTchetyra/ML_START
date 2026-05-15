@@ -30,6 +30,8 @@ _is_running: bool = False
 _latest_jpeg: bytes | None = None
 _frame_version: int = 0
 _frame_cond: asyncio.Condition | None = None
+_last_event_saved_at: float = 0.0
+_EVENT_SAVE_INTERVAL: float = 30.0
 
 
 def _get_frame_cond() -> asyncio.Condition:
@@ -192,13 +194,16 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
             out_of_schedule = not _is_in_schedule(schedule) and result.granule_count > 0
 
             if threshold_exceeded or out_of_schedule:
-                _save_event(
-                    result.granule_count,
-                    result.intensity_per_sec,
-                    result.intensity_per_min,
-                    threshold_exceeded,
-                    out_of_schedule,
-                )
+                now_mono = monotonic()
+                if now_mono - _last_event_saved_at >= _EVENT_SAVE_INTERVAL:
+                    _save_event(
+                        result.granule_count,
+                        result.intensity_per_sec,
+                        result.intensity_per_min,
+                        threshold_exceeded,
+                        out_of_schedule,
+                    )
+                    globals()["_last_event_saved_at"] = now_mono
 
             payload = FrameAnalysisResponse(
                 frame_index=frame_index,

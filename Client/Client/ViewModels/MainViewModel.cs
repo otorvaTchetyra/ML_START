@@ -377,11 +377,13 @@ namespace Client.ViewModels
             }
         }
 
-        public async Task StopVideoAndAnalysisAsync()
+        public async Task StopVideoAndAnalysisAsync(bool videoEnded = false)
         {
             await StopStreamAsync();
             OverlayDetections.Clear();
             CurrentFrameInfo = new StreamFrame();
+            if (videoEnded)
+                StatusText = "Видео завершено";
         }
 
         public async Task StartVideoAndAnalysisAsync()
@@ -612,8 +614,6 @@ namespace Client.ViewModels
                     bboxes = frame.bboxes
                 }),
                 usernameSnapshot: _authService.CurrentUser?.Username);
-
-            await LoadJournalAsync();
         }
 
         private async Task GoToSettingsAsync() => await _navigationService.NavigateToSettingsAsync();
