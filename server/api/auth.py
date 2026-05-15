@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from config import settings
 from database import User, get_db
-from schemas.schemas import LoginRequest, TokenResponse, UserCreate, UserResponse
+from schemas.schemas import LoginRequest, TokenResponse, UserCreate, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -72,6 +72,29 @@ def create_user(data: UserCreate, db: Session = Depends(get_db), _: User = Depen
         raise HTTPException(status_code=400, detail="Роль должна быть admin или operator")
     user = User(username=data.username, hashed_password=hash_password(data.password), role=data.role)
     db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.put("/users/{user_id}", response_model=UserResponse)
+def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if data.username is not None:
+        existing = db.query(User).filter(User.username == data.username, User.id != user_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Логин уже занят")
+        user.username = data.username
+    if data.password is not None and data.password.strip():
+        user.hashed_password = hash_password(data.password)
+    if data.role is not None:
+        if data.role not in ("admin", "operator"):
+            raise HTTPException(status_code=400, detail="Роль должна быть admin или operator")
+        user.role = data.role
+    if data.is_active is not None:
+        user.is_active = data.is_active
     db.commit()
     db.refresh(user)
     return user

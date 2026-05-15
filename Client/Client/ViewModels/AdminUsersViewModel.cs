@@ -27,6 +27,11 @@ public class AdminUsersViewModel : ViewModelBase, IRoutableViewModel
     private ApiUser? _selectedServerUser;
     private string _newOperatorUsername = string.Empty;
     private string _newOperatorPassword = string.Empty;
+    private string _editUsername = string.Empty;
+    private string _editPassword = string.Empty;
+    private string _editRole = "operator";
+    private bool _isNewPasswordVisible;
+    private bool _isEditPasswordVisible;
     private string _feedbackMessage = string.Empty;
     private IBrush _feedbackBrush = Brushes.Transparent;
     private bool _isBusy;
@@ -40,8 +45,20 @@ public class AdminUsersViewModel : ViewModelBase, IRoutableViewModel
     public ApiUser? SelectedServerUser
     {
         get => _selectedServerUser;
-        set => this.RaiseAndSetIfChanged(ref _selectedServerUser, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedServerUser, value);
+            if (value != null)
+            {
+                EditUsername = value.Username;
+                EditRole = value.Role;
+                EditPassword = string.Empty;
+            }
+            this.RaisePropertyChanged(nameof(IsEditVisible));
+        }
     }
+
+    public bool IsEditVisible => _selectedServerUser != null;
 
     public string NewOperatorUsername
     {
@@ -53,6 +70,38 @@ public class AdminUsersViewModel : ViewModelBase, IRoutableViewModel
     {
         get => _newOperatorPassword;
         set => this.RaiseAndSetIfChanged(ref _newOperatorPassword, value);
+    }
+
+    public string EditUsername
+    {
+        get => _editUsername;
+        set => this.RaiseAndSetIfChanged(ref _editUsername, value);
+    }
+
+    public string EditPassword
+    {
+        get => _editPassword;
+        set => this.RaiseAndSetIfChanged(ref _editPassword, value);
+    }
+
+    public string EditRole
+    {
+        get => _editRole;
+        set => this.RaiseAndSetIfChanged(ref _editRole, value);
+    }
+
+    public string[] AvailableRoles { get; } = ["operator", "admin"];
+
+    public bool IsNewPasswordVisible
+    {
+        get => _isNewPasswordVisible;
+        set => this.RaiseAndSetIfChanged(ref _isNewPasswordVisible, value);
+    }
+
+    public bool IsEditPasswordVisible
+    {
+        get => _isEditPasswordVisible;
+        set => this.RaiseAndSetIfChanged(ref _isEditPasswordVisible, value);
     }
 
     public string FeedbackMessage
@@ -83,6 +132,9 @@ public class AdminUsersViewModel : ViewModelBase, IRoutableViewModel
     public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
     public ReactiveCommand<Unit, Unit> CreateOperatorCommand { get; }
     public ReactiveCommand<Unit, Unit> DeleteUserCommand { get; }
+    public ReactiveCommand<Unit, Unit> SaveEditCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleNewPasswordCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleEditPasswordCommand { get; }
 
     public AdminUsersViewModel(
         IScreen screen,
@@ -111,6 +163,13 @@ public class AdminUsersViewModel : ViewModelBase, IRoutableViewModel
                 u => u is ApiUser sel
                      && !string.Equals(sel.Role, "admin", StringComparison.OrdinalIgnoreCase)
                      && sel.Id != (_authService.CurrentUser?.Id ?? -1)));
+
+        SaveEditCommand = ReactiveCommand.CreateFromTask(
+            SaveEditAsync,
+            this.WhenAnyValue(x => x.IsBusy, b => !b));
+
+        ToggleNewPasswordCommand = ReactiveCommand.Create(() => { IsNewPasswordVisible = !IsNewPasswordVisible; });
+        ToggleEditPasswordCommand = ReactiveCommand.Create(() => { IsEditPasswordVisible = !IsEditPasswordVisible; });
     }
 
     public async Task InitializeAsync()
@@ -164,6 +223,49 @@ public class AdminUsersViewModel : ViewModelBase, IRoutableViewModel
                 message: "Администратор создал учётную запись оператора",
                 source: "admin",
                 action: "user_create",
+                level: "info",
+                usernameSnapshot: _authService.CurrentUser?.Username);
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            FeedbackMessage = $"Ошибка: {ex.Message}";
+            FeedbackBrush = Brushes.OrangeRed;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (SelectedServerUser == null) return;
+        if (string.IsNullOrWhiteSpace(EditUsername))
+        {
+            FeedbackMessage = "Логин не может быть пустым";
+            FeedbackBrush = Brushes.OrangeRed;
+            return;
+        }
+
+        IsBusy = true;
+        FeedbackMessage = string.Empty;
+        try
+        {
+            var password = string.IsNullOrWhiteSpace(EditPassword) ? null : EditPassword;
+            var updated = await _usersService.UpdateUserAsync(
+                SelectedServerUser.Id,
+                EditUsername.Trim(),
+                password,
+                EditRole,
+                null);
+            FeedbackMessage = $"Пользователь «{updated?.Username}» обновлён";
+            FeedbackBrush = Brushes.LimeGreen;
+            await _journalService.RecordAsync(
+                eventCode: "custom",
+                message: $"Администратор изменил учётную запись «{updated?.Username}»",
+                source: "admin",
+                action: "user_edit",
                 level: "info",
                 usernameSnapshot: _authService.CurrentUser?.Username);
             await RefreshAsync();
