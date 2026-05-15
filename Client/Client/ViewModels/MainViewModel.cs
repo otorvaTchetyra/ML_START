@@ -617,11 +617,19 @@ namespace Client.ViewModels
         }
 
         private async Task GoToSettingsAsync() => await _navigationService.NavigateToSettingsAsync();
-        private async Task GoToStreamAsync() => await _navigationService.NavigateToStreamAsync();
+
+        private async Task GoToStreamAsync()
+        {
+            await StopVideoAndAnalysisAsync();
+            IsAlertActive = false;
+            await _navigationService.NavigateToStreamAsync();
+        }
 
         private async Task LogoutAsync()
         {
             _journalRefreshTimer.Stop();
+            await StopVideoAndAnalysisAsync();
+            IsAlertActive = false;
             await _journalService.RecordAsync(
                 eventCode: "logout",
                 message: "Пользователь вышел из приложения",
