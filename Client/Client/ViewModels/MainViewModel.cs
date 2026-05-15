@@ -6,9 +6,11 @@ using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reactive;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -39,6 +41,8 @@ namespace Client.ViewModels
         private string _loadingText = string.Empty;
         private double _loadingPercent;
         private bool _isLoadingIndeterminate;
+        private bool _isAlertActive;
+        private string _alertText = string.Empty;
         private int _videoSourceWidth = 0;
         private int _videoSourceHeight = 0;
         private double _videoViewportWidth = 0;
@@ -139,6 +143,18 @@ namespace Client.ViewModels
         {
             get => _isLoadingIndeterminate;
             set => this.RaiseAndSetIfChanged(ref _isLoadingIndeterminate, value);
+        }
+
+        public bool IsAlertActive
+        {
+            get => _isAlertActive;
+            set => this.RaiseAndSetIfChanged(ref _isAlertActive, value);
+        }
+
+        public string AlertText
+        {
+            get => _alertText;
+            set => this.RaiseAndSetIfChanged(ref _alertText, value);
         }
 
         public bool IsAdmin => _authService.IsAdmin;
@@ -474,7 +490,21 @@ namespace Client.ViewModels
             });
 
             if (alert)
+            {
                 _ = RecordFrameAlertAsync(frame);
+                var alertText = frame.Threshold_exceeded && frame.Out_of_schedule
+                    ? "Превышен порог гранул • Кормление вне расписания"
+                    : frame.Threshold_exceeded ? "Превышен порог гранул"
+                    : "Кормление вне расписания";
+                Dispatcher.UIThread.Post(() =>
+                {
+                    AlertText = alertText;
+                    IsAlertActive = true;
+                });
+                _ = Task.Delay(5000).ContinueWith(_ =>
+                    Dispatcher.UIThread.Post(() => IsAlertActive = false));
+                _ = PlayAlertSoundAsync();
+            }
         }
 
         public void SetVideoSourceSize(int width, int height)
@@ -520,6 +550,28 @@ namespace Client.ViewModels
             }
             OverlayDetections = overlays;
         }
+
+        private static Task PlayAlertSoundAsync() => Task.Run(() =>
+        {
+            try
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "cvlc",
+                        Arguments = "--play-and-exit --no-video /usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga",
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    });
+                }
+                else
+                {
+                    Console.Beep(880, 400);
+                }
+            }
+            catch { }
+        });
 
         private async Task RecordFrameAlertAsync(StreamFrame frame)
         {

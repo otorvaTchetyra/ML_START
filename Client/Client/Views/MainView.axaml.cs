@@ -23,8 +23,8 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
     private LibVLC? _libVlc;
     private MediaPlayer? _mediaPlayer;
     private WriteableBitmap? _videoBitmap;
-    private byte[]? _frameBuffer;
-    private GCHandle _frameHandle;
+    private IntPtr _unmanagedBuffer = IntPtr.Zero;
+    private int _unmanagedBufferSize;
     private int _vlcW, _vlcH;
     private readonly object _frameLock = new();
 
@@ -49,10 +49,15 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
         Marshal.Copy(System.Text.Encoding.ASCII.GetBytes("BGRA"), 0, chroma, 4);
         _vlcW = (int)width;
         _vlcH = (int)height;
+        int size = _vlcW * _vlcH * 4;
 
-        if (_frameHandle.IsAllocated) _frameHandle.Free();
-        _frameBuffer = new byte[_vlcW * _vlcH * 4];
-        _frameHandle = GCHandle.Alloc(_frameBuffer, GCHandleType.Pinned);
+        lock (_frameLock)
+        {
+            if (_unmanagedBuffer != IntPtr.Zero)
+                Marshal.FreeHGlobal(_unmanagedBuffer);
+            _unmanagedBuffer = Marshal.AllocHGlobal(size);
+            _unmanagedBufferSize = size;
+        }
 
         pitches = (uint)(_vlcW * 4);
         lines = (uint)_vlcH;
@@ -77,8 +82,12 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
     {
         lock (_frameLock)
         {
-            if (_frameHandle.IsAllocated) _frameHandle.Free();
-            _frameBuffer = null;
+            if (_unmanagedBuffer != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(_unmanagedBuffer);
+                _unmanagedBuffer = IntPtr.Zero;
+                _unmanagedBufferSize = 0;
+            }
         }
     }
 
@@ -86,8 +95,8 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
     {
         lock (_frameLock)
         {
-            if (_frameHandle.IsAllocated)
-                Marshal.WriteIntPtr(planes, _frameHandle.AddrOfPinnedObject());
+            if (_unmanagedBuffer != IntPtr.Zero)
+                Marshal.WriteIntPtr(planes, _unmanagedBuffer);
         }
         return IntPtr.Zero;
     }
@@ -97,10 +106,9 @@ public partial class MainView : ReactiveUserControl<MainViewModel>
         byte[]? copy;
         lock (_frameLock)
         {
-            var buf = _frameBuffer;
-            if (buf == null) return;
-            copy = new byte[buf.Length];
-            Buffer.BlockCopy(buf, 0, copy, 0, copy.Length);
+            if (_unmanagedBuffer == IntPtr.Zero || _unmanagedBufferSize == 0) return;
+            copy = new byte[_unmanagedBufferSize];
+            Marshal.Copy(_unmanagedBuffer, copy, 0, _unmanagedBufferSize);
         }
         var bmp = _videoBitmap;
         if (bmp == null) return;

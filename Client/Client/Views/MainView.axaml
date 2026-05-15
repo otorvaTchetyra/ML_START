@@ -134,6 +134,17 @@
                                                 IsHitTestVisible="False"
                                                 HorizontalAlignment="Stretch"
                                                 VerticalAlignment="Stretch"/>
+                                        <Border IsVisible="{Binding IsAlertActive}"
+                                                Background="#CCCC2200"
+                                                VerticalAlignment="Top"
+                                                IsHitTestVisible="False"
+                                                Padding="16,10">
+                                            <TextBlock Text="{Binding AlertText}"
+                                                       Foreground="White"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"/>
+                                        </Border>
                                         <Border IsVisible="{Binding IsLoading}"
                                                 Background="#CC000000"
                                                 IsHitTestVisible="False">

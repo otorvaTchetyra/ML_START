@@ -354,3 +354,25 @@ pytest tests/ -v
 |------|----------|
 | `Client/ViewModels/LoginViewModel.cs` | Свойство `IsPasswordVisible`; команда `TogglePasswordCommand` |
 | `Client/Views/LoginView.axaml` | Два TextBox для пароля с переключением видимости; кнопка-глаз с Path-иконками; центрирование текста кнопки входа |
+
+---
+
+## Звуковой сигнал и баннер при превышении порога. Исправление вылетов LibVLC
+**Дата:** 15.05.2026  
+**Статус:** Выполнено
+
+### Что реализовано
+
+**Визуальный баннер при алерте.** При получении кадра с `Threshold_exceeded = true` или `Out_of_schedule = true` поверх видео появляется красный полупрозрачный баннер с текстом ("Превышен порог гранул", "Кормление вне расписания" или оба сразу). Баннер автоматически скрывается через 5 секунд. Повторные алерты срабатывают не чаще одного раза в 5 секунд.
+
+**Звуковой сигнал.** При алерте запускается воспроизведение системного звука через `cvlc --play-and-exit`. На Linux используется `/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga`, на других платформах — `Console.Beep`.
+
+**Исправление вылетов LibVLC (SIGSEGV / munmap_chunk).** Приложение периодически падало с `munmap_chunk(): invalid pointer` (SIGABRT, exit 134) и SIGSEGV (exit 139). Причина: буфер кадра был выделен через `GCHandle.Alloc(Pinned)` на управляемом массиве. LibVLC обращался к этой памяти из нативного потока, что конфликтовало с .NET runtime при GC или при переключении медиа. Буфер переведён на неуправляемую память через `Marshal.AllocHGlobal` — LibVLC всегда работает со стабильным нативным указателем вне досягаемости GC. Все операции с буфером защищены `lock`.
+
+### Файлы
+
+| Файл | Описание |
+|------|----------|
+| `Client/ViewModels/MainViewModel.cs` | Свойства `IsAlertActive`, `AlertText`; запуск звука и баннера при алерте; `PlayAlertSoundAsync` через `cvlc` |
+| `Client/Views/MainView.axaml` | Красный баннер поверх видео, привязан к `IsAlertActive` и `AlertText` |
+| `Client/Views/MainView.axaml.cs` | Буфер кадра переведён с `GCHandle.Pinned` на `Marshal.AllocHGlobal`; все колбэки под `lock` |
