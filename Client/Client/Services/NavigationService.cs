@@ -29,7 +29,12 @@ public sealed class NavigationService
         await registerViewModel.InitializeAsync();
         await _screen.Router.Navigate.Execute(registerViewModel);
     }
-
+    public async Task NavigateToStatisticsAsync()
+    {
+        var vm = _routableViewModelsFactory.CreateStatisticsViewModel();
+        await vm.InitializeAsync();
+        await _screen.Router.Navigate.Execute(vm);
+    }
     public async Task NavigateToAdminHomeAsync()
     {
         var vm = _routableViewModelsFactory.CreateAdminHomeViewModel();

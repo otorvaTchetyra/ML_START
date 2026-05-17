@@ -134,6 +134,7 @@ namespace Client
 
             services.AddTransient<LoginViewModel>();
             services.AddTransient<RegisterViewModel>();
+            services.AddTransient<StatisticsViewModel>();
             services.AddTransient<SettingsViewModel>();
             services.AddTransient<StreamViewModel>();
             services.AddTransient<AdminHomeViewModel>();

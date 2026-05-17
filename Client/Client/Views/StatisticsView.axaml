@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Client.ViewModels"
+             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.Avalonia;assembly=LiveChartsCore.SkiaSharpView.Avalonia"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignWidth="900"
+             d:DesignHeight="620"
+             x:Class="Client.StatisticsView"
+             x:DataType="vm:StatisticsViewModel">
+
+    <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto">
+        
+        <!-- Заголовок -->
+        <TextBlock Grid.Row="0" 
+                   Text="Статистика кормления"
+                   FontSize="20" FontWeight="Bold"
+                   Margin="0,0,0,16"/>
+        
+        <!-- Панель фильтров -->
+        <Border Grid.Row="1"
+                Background="#1E1E2E"
+                CornerRadius="8"
+                Padding="12"
+                Margin="0,0,0,16">
+            <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto">
+                
+                <TextBlock Text="Период:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding Periods}"
+                          SelectedItem="{Binding SelectedPeriod}"
+                          Width="120"/>
+                
+
+                <Button Grid.Column="6"
+                        Content="Обновить"
+                        Command="{Binding LoadStatisticsCommand}"
+                        Margin="12,0,0,0"
+                        Padding="16,8"/>
+                
+            </Grid>
+        </Border>
+        
+        <!-- Статистические карточки -->
+        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,*" RowSpacing="16">
+            
+            <!-- Карточки показателей -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*" ColumnSpacing="16">
+                <Border Background="#1E1E2E" CornerRadius="8" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Всего событий" Foreground="#888" FontSize="12"/>
+                        <TextBlock Text="{Binding TotalEvents}" FontSize="24" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+                
+                <Border Background="#1E1E2E" CornerRadius="8" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Всего гранул" Foreground="#888" FontSize="12"/>
+                        <TextBlock Text="{Binding TotalGranules}" FontSize="24" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+                
+                <Border Background="#1E1E2E" CornerRadius="8" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Средняя интенсивность" Foreground="#888" FontSize="12"/>
+                        <TextBlock Text="{Binding AverageIntensity, StringFormat=F1}" FontSize="24" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+                
+                <Border Background="#1E1E2E" CornerRadius="8" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Макс. интенсивность" Foreground="#888" FontSize="12"/>
+                        <TextBlock Text="{Binding MaxIntensity, StringFormat=F1}" FontSize="24" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+            
+            <!-- График интенсивности -->
+            <Border Grid.Row="1" Background="#1E1E2E" CornerRadius="8" Padding="12">
+                <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                    <TextBlock Grid.Row="0" Text="Интенсивность кормления (гранул/сек)" FontWeight="Bold"/>
+                    <lvc:CartesianChart Grid.Row="1" Series="{Binding IntensitySeries}"/>
+                </Grid>
+            </Border>
+            
+            <!-- График количества гранул -->
+            <Border Grid.Row="2" Background="#1E1E2E" CornerRadius="8" Padding="12">
+                <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                    <TextBlock Grid.Row="0" Text="Количество гранул по событиям" FontWeight="Bold"/>
+                    <lvc:CartesianChart Grid.Row="1" Series="{Binding GranuleSeries}"/>
+                </Grid>
+            </Border>
+            
+        </Grid>
+        
+        <!-- Кнопка назад -->
+        <Button Grid.Row="3"
+                Content="← Назад"
+                Command="{Binding GoBackCommand}"
+                HorizontalAlignment="Left"
+                Margin="0,16,0,0"
+                Classes="secondary"/>
+        
+    </Grid>
+</UserControl>

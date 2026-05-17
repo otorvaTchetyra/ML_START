@@ -253,71 +253,106 @@
 
                 <Grid Grid.Column="1"
                       RowDefinitions="Auto,*,Auto,*">
-                    <TextBlock Grid.Row="0"
-                               Text="Журнал событий"
-                               FontSize="16"
-                               FontWeight="Bold"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               Margin="0,0,0,8"/>
 
-                    <Border Grid.Row="1"
-                            Classes="panel"
-                            Padding="10"
-                            Margin="0,0,0,10">
-                        <ScrollViewer>
-                            <ListBox ItemsSource="{Binding JournalEntries}"
-                                     SelectedItem="{Binding SelectedJournalEntry}"
-                                     Background="Transparent"
-                                     BorderThickness="0">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{DynamicResource FieldBrush}"
-                                                CornerRadius="10"
-                                                Margin="0,4"
-                                                Padding="10">
-                                            <StackPanel Spacing="4">
-                                                <StackPanel Orientation="Horizontal"
-                                                            Spacing="10">
-                                                    <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd.MM.yyyy HH:mm:ss}}"
-                                                               FontSize="11"
-                                                               Foreground="{DynamicResource MutedBrush}"/>
+                    <TabControl Grid.Row="0" Grid.RowSpan="2" Margin="0,0,0,10">
+                        <TabItem Header="События кормления">
+                            <Border Classes="panel" Padding="10" Margin="0,8,0,0">
+                                <ScrollViewer>
+                                    <ListBox ItemsSource="{Binding Events}"
+                                             SelectedItem="{Binding SelectedEvent}"
+                                             Background="Transparent"
+                                             BorderThickness="0">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{DynamicResource FieldBrush}"
+                                                        CornerRadius="10"
+                                                        Margin="0,4"
+                                                        Padding="10">
+                                                    <StackPanel Spacing="4">
+                                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                                            <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd.MM.yyyy HH:mm:ss}}"
+                                                                       FontSize="11"
+                                                                       Foreground="{DynamicResource MutedBrush}"/>
+                                                            <Border Background="{Binding StatusColor}"
+                                                                    CornerRadius="3"
+                                                                    Padding="4,1">
+                                                                <TextBlock Text="{Binding IsOutOfSchedule, StringFormat={}Вне расписания}"
+                                                                           FontSize="10"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="15">
+                                                            <TextBlock Text="{Binding GranuleCount, StringFormat=Гранул: {0}}"
+                                                                       FontSize="12"/>
+                                                            <TextBlock Text="{Binding IntensityPerSec, StringFormat=Интенсивность: {0:F1}/сек}"
+                                                                       FontSize="12"/>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding Comment}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   IsVisible="{Binding HasComment}"
+                                                                   TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </ScrollViewer>
+                            </Border>
+                        </TabItem>
 
-                                                    <Border Background="{DynamicResource AccentBrush}"
-                                                            CornerRadius="999"
-                                                            Padding="8,2">
-                                                        <TextBlock Text="{Binding Level}"
-                                                                   FontSize="10"
-                                                                   Foreground="White"/>
-                                                    </Border>
-                                                </StackPanel>
-
-                                                <TextBlock Text="{Binding Message}"
-                                                           FontSize="12"
-                                                           Foreground="{DynamicResource TextPrimaryBrush}"
-                                                           TextWrapping="Wrap"/>
-
-                                                <TextBlock Text="{Binding Category, StringFormat={}Категория: {0}}"
-                                                           FontSize="11"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           TextWrapping="Wrap"/>
-
-                                                <TextBlock Text="{Binding Source, StringFormat={}Источник: {0}}"
-                                                           FontSize="11"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           TextWrapping="Wrap"/>
-
-                                                <TextBlock Text="{Binding Comment, StringFormat={}Комментарий: {0}}"
-                                                           FontSize="11"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                                           IsVisible="{Binding HasComment}"
-                                                           TextWrapping="Wrap"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </ScrollViewer>
-                    </Border>
+                        <TabItem Header="Системный журнал">
+                            <Border Classes="panel" Padding="10" Margin="0,8,0,0">
+                                <ScrollViewer>
+                                    <ListBox ItemsSource="{Binding JournalEntries}"
+                                             SelectedItem="{Binding SelectedJournalEntry}"
+                                             Background="Transparent"
+                                             BorderThickness="0">
+                                        <!-- Ваш существующий ItemTemplate для JournalEntry -->
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{DynamicResource FieldBrush}"
+                                                        CornerRadius="10"
+                                                        Margin="0,4"
+                                                        Padding="10">
+                                                    <StackPanel Spacing="4">
+                                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                                            <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd.MM.yyyy HH:mm:ss}}"
+                                                                       FontSize="11"
+                                                                       Foreground="{DynamicResource MutedBrush}"/>
+                                                            <Border Background="{DynamicResource AccentBrush}"
+                                                                    CornerRadius="999"
+                                                                    Padding="8,2">
+                                                                <TextBlock Text="{Binding Level}"
+                                                                           FontSize="10"
+                                                                           Foreground="White"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding Message}"
+                                                                   FontSize="12"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                   TextWrapping="Wrap"/>
+                                                        <TextBlock Text="{Binding Category, StringFormat={}Категория: {0}}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   TextWrapping="Wrap"/>
+                                                        <TextBlock Text="{Binding Source, StringFormat={}Источник: {0}}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   TextWrapping="Wrap"/>
+                                                        <TextBlock Text="{Binding Comment, StringFormat={}Комментарий: {0}}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   IsVisible="{Binding HasComment}"
+                                                                   TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </ScrollViewer>
+                            </Border>
+                        </TabItem>
+                    </TabControl>
 
                     <TextBlock Grid.Row="2"
                                Text="Комментарий к записи"
