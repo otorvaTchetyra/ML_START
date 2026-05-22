@@ -18,32 +18,17 @@
                    FontSize="20" FontWeight="Bold"
                    Margin="0,0,0,16"/>
         
-        <!-- Панель фильтров -->
-        <Border Grid.Row="1"
-                Background="#1E1E2E"
-                CornerRadius="8"
-                Padding="12"
-                Margin="0,0,0,16">
-            <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto">
-                
-                <TextBlock Text="Период:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <ComboBox Grid.Column="1"
-                          ItemsSource="{Binding Periods}"
-                          SelectedItem="{Binding SelectedPeriod}"
-                          Width="120"/>
-                
-
+     
                 <Button Grid.Column="6"
                         Content="Обновить"
                         Command="{Binding LoadStatisticsCommand}"
                         Margin="12,0,0,0"
-                        Padding="16,8"/>
-                
-            </Grid>
-        </Border>
+                        Padding="16,8"
+                        HorizontalAlignment="Right"/>
+           
         
         <!-- Статистические карточки -->
-        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,*" RowSpacing="16">
+        <Grid Grid.Row="2" RowDefinitions="Auto,*,*" RowSpacing="16">
             
             <!-- Карточки показателей -->
             <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*" ColumnSpacing="16">
@@ -76,19 +61,23 @@
                 </Border>
             </Grid>
             
-            <!-- График интенсивности -->
+           <!-- График интенсивности -->
             <Border Grid.Row="1" Background="#1E1E2E" CornerRadius="8" Padding="12">
                 <Grid RowDefinitions="Auto,*" RowSpacing="8">
                     <TextBlock Grid.Row="0" Text="Интенсивность кормления (гранул/сек)" FontWeight="Bold"/>
-                    <lvc:CartesianChart Grid.Row="1" Series="{Binding IntensitySeries}"/>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <lvc:CartesianChart Series="{Binding IntensitySeries}" MinWidth="800"/>
+                    </ScrollViewer>
                 </Grid>
             </Border>
-            
+
             <!-- График количества гранул -->
             <Border Grid.Row="2" Background="#1E1E2E" CornerRadius="8" Padding="12">
                 <Grid RowDefinitions="Auto,*" RowSpacing="8">
                     <TextBlock Grid.Row="0" Text="Количество гранул по событиям" FontWeight="Bold"/>
-                    <lvc:CartesianChart Grid.Row="1" Series="{Binding GranuleSeries}"/>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <lvc:CartesianChart Series="{Binding GranuleSeries}" MinWidth="800"/>
+                    </ScrollViewer>
                 </Grid>
             </Border>
             

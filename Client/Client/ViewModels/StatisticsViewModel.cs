@@ -23,45 +23,21 @@ public class StatisticsViewModel : ViewModelBase, IRoutableViewModel
     private readonly AuthService _authService;
     private readonly EventsService _eventsService;
 
-    private DateTime _dateFrom;
-    private DateTime _dateTo;
     private string _selectedPeriod = "День";
     private bool _isLoading;
     private string _statusText = string.Empty;
 
-    // Коллекции для графиков
     private ObservableCollection<FeedingEvent> _events = new();
     private ISeries[] _intensitySeries;
     private ISeries[] _granuleSeries;
 
-    // Статистика
     private double _averageIntensity;
     private int _totalGranules;
     private int _totalEvents;
     private double _maxIntensity;
     private bool IsInitialized;
 
-    public DateTime DateFrom
-    {
-        get => _dateFrom;
-        set => this.RaiseAndSetIfChanged(ref _dateFrom, value);
-    }
 
-    public DateTime DateTo
-    {
-        get => _dateTo;
-        set => this.RaiseAndSetIfChanged(ref _dateTo, value);
-    }
-
-    public string SelectedPeriod
-    {
-        get => _selectedPeriod;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _selectedPeriod, value);
-            UpdateDateRangeByPeriod();
-        }
-    }
 
     public bool IsLoading
     {
@@ -99,14 +75,12 @@ public class StatisticsViewModel : ViewModelBase, IRoutableViewModel
         set => this.RaiseAndSetIfChanged(ref _maxIntensity, value);
     }
 
-    // График интенсивности
     public ISeries[] IntensitySeries
     {
         get => _intensitySeries;
         set => this.RaiseAndSetIfChanged(ref _intensitySeries, value);
     }
 
-    // График количества гранул
     public ISeries[] GranuleSeries
     {
         get => _granuleSeries;
@@ -129,15 +103,11 @@ public class StatisticsViewModel : ViewModelBase, IRoutableViewModel
         _eventsService = eventsService;
         _authService = authService;
 
-        // По умолчанию - последние 7 дней
-        DateTo = DateTime.Now;
-        DateFrom = DateTime.Now.AddDays(-7);
 
         LoadStatisticsCommand = ReactiveCommand.CreateFromTask(LoadStatisticsAsync);
         RefreshCommand = LoadStatisticsCommand;
         GoBackCommand = ReactiveCommand.CreateFromTask(navigationService.NavigateToMainAsync);
 
-        // Пустые графики по умолчанию
         IntensitySeries = Array.Empty<ISeries>();
         GranuleSeries = Array.Empty<ISeries>();
     }
@@ -147,26 +117,6 @@ public class StatisticsViewModel : ViewModelBase, IRoutableViewModel
         {
             await LoadStatisticsAsync();
             IsInitialized = true;
-        }
-    }
-    private void UpdateDateRangeByPeriod()
-    {
-        DateTo = DateTime.Now;
-
-        switch (SelectedPeriod)
-        {
-            case "День":
-                DateFrom = DateTime.Now.AddDays(-1);
-                break;
-            case "Неделя":
-                DateFrom = DateTime.Now.AddDays(-7);
-                break;
-            case "Месяц":
-                DateFrom = DateTime.Now.AddMonths(-1);
-                break;
-            case "Произвольный":
-                // Оставляем текущие значения
-                break;
         }
     }
 
@@ -206,40 +156,43 @@ public class StatisticsViewModel : ViewModelBase, IRoutableViewModel
             return;
         }
 
-        // Сортируем по времени
         var sortedEvents = _events.OrderBy(e => e.Timestamp).ToList();
-
-        // Данные для графика интенсивности
-        var intensityPoints = sortedEvents
-            .Select(e => new DateTimePoint(e.Timestamp, e.IntensityPerSec))
-            .ToArray();
-
-        // Данные для графика количества гранул
-        var granulePoints = sortedEvents
-            .Select(e => new DateTimePoint(e.Timestamp, e.GranuleCount))
-            .ToArray();
+        var dates = sortedEvents.Select(e => e.Timestamp).ToList();
+        var intensityValues = sortedEvents.Select(e => (double)e.IntensityPerSec).ToArray();
+        var granuleValues = sortedEvents.Select(e => (double)e.GranuleCount).ToArray();
 
         IntensitySeries = new ISeries[]
         {
-            new LineSeries<DateTimePoint>
+        new ColumnSeries<double>
+        {
+            Values = intensityValues,
+            Name = "Интенсивность (гранул/сек)",
+            Fill = new SolidColorPaint(SKColor.Parse("#FF6B6B")),
+            XToolTipLabelFormatter = (point) =>
             {
-                Values = intensityPoints,
-                Name = "Интенсивность (гранул/сек)",
-                Stroke = new SolidColorPaint(SKColor.FromHsl(100, 100, 255)),
-                Fill = null,
-                GeometrySize = 8,
-                LineSmoothness = 0.5
+                var index = point.Index;
+                var date = index < dates.Count ? dates[index].ToString("HH:mm:ss") : index.ToString();
+                var value = point.Model; 
+                return $"Событие {index + 1}: {date}";
             }
+        }
         };
 
         GranuleSeries = new ISeries[]
         {
-            new ColumnSeries<DateTimePoint>
+        new ColumnSeries<double>
+        {
+            Values = granuleValues,
+            Name = "Количество гранул",
+            Fill = new SolidColorPaint(SKColor.Parse("#4CAF50")),
+            XToolTipLabelFormatter = (point) =>
             {
-                Values = granulePoints,
-                Name = "Количество гранул",
-                Fill = new SolidColorPaint(SKColor.FromHsl(54, 162, 232))
+                var index = point.Index; 
+                var date = index < dates.Count ? dates[index].ToString("HH:mm:ss") : index.ToString();
+                var value = point.Model; 
+                return $"Событие {index + 1}: {date}";
             }
+        }
         };
     }
 
