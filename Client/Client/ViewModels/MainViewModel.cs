@@ -424,7 +424,6 @@ namespace Client.ViewModels
                     onStreamEnded: () => Dispatcher.UIThread.Post(async () =>
                     {
                         _isAnalysisActive = false;
-                        StatusText = "Анализ завершён, загрузка событий...";
                         await LoadEventsFastAsync();
                     }));
 
