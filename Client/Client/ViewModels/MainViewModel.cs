@@ -28,6 +28,7 @@ namespace Client.ViewModels
         private readonly JournalService _journalService;
         private readonly StreamService _streamService;
         private readonly DispatcherTimer _journalRefreshTimer;
+        private readonly DispatcherTimer _eventsRefreshTimer;
         private static readonly TimeSpan FrameAlertInterval = TimeSpan.FromSeconds(5);
 
         private string _statusText = "Готов к работе";
@@ -201,6 +202,9 @@ namespace Client.ViewModels
 
             _journalRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
             _journalRefreshTimer.Tick += async (_, _) => await LoadJournalAsync();
+
+            _eventsRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+            _eventsRefreshTimer.Tick += async (_, _) => await LoadEventsFastAsync();
 
             OpenVideoCommand = ReactiveCommand.CreateFromTask(OpenVideoAsync);
             GoToSettingsCommand = ReactiveCommand.CreateFromTask(GoToSettingsAsync);
@@ -380,6 +384,7 @@ namespace Client.ViewModels
 
         public async Task StopVideoAndAnalysisAsync(bool videoEnded = false)
         {
+            _eventsRefreshTimer.Stop();
             await StopStreamAsync();
             OverlayDetections.Clear();
             CurrentFrameInfo = new StreamFrame();
@@ -424,11 +429,13 @@ namespace Client.ViewModels
                     onStreamEnded: () => Dispatcher.UIThread.Post(async () =>
                     {
                         _isAnalysisActive = false;
+                        _eventsRefreshTimer.Stop();
                         StatusText = "Анализ завершён";
                         await LoadEventsFastAsync();
                     }));
 
                 _isAnalysisActive = true;
+                _eventsRefreshTimer.Start();
                 StatusText = "Анализ видео запущен";
             }
             catch (Exception ex)
