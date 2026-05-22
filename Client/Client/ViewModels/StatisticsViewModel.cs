@@ -20,6 +20,7 @@ public class StatisticsViewModel : ViewModelBase, IRoutableViewModel
     public string? UrlPathSegment => "statistics";
     public IScreen HostScreen { get; }
 
+    private readonly AuthService _authService;
     private readonly EventsService _eventsService;
 
     private DateTime _dateFrom;
@@ -120,11 +121,13 @@ public class StatisticsViewModel : ViewModelBase, IRoutableViewModel
 
     public StatisticsViewModel(
         IScreen screen,
+        AuthService authService,
         EventsService eventsService,
         NavigationService navigationService)
     {
         HostScreen = screen;
         _eventsService = eventsService;
+        _authService = authService;
 
         // По умолчанию - последние 7 дней
         DateTo = DateTime.Now;

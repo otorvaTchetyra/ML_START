@@ -96,6 +96,9 @@
                                 Command="{Binding GoToSettingsCommand}"
                                 IsVisible="{Binding IsAdmin}"/>
                         <Button Classes="secondary"
+                                Content="График"
+                                Command="{Binding GoToStatisticsCommand}"/>
+                        <Button Classes="secondary"
                                 Content="Стрим"
                                 Command="{Binding GoToStreamCommand}"/>
                         <Button Classes="secondary"

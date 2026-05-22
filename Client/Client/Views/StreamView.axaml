@@ -16,6 +16,8 @@
                       IsVisible="{Binding IsAdmin}" />
             <MenuItem Header="Видео"
                       Command="{Binding GoToMainCommand}" />
+            <MenuItem Header="График"
+                      Command="{Binding GoToStatisticsCommand}" />
         </Menu>
 
         <Border DockPanel.Dock="Bottom"

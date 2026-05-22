@@ -62,6 +62,7 @@ namespace Client.ViewModels
         }
 
         public ReactiveCommand<Unit, Unit> GoToSettingsCommand { get; }
+        public ReactiveCommand<Unit, Unit> GoToStatisticsCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToMainCommand { get; }
         public ReactiveCommand<Unit, Unit> StartCameraCommand { get; }
         public ReactiveCommand<Unit, Unit> StopCameraCommand { get; }
@@ -84,6 +85,7 @@ namespace Client.ViewModels
             _cameraService = cameraService;
 
             GoToSettingsCommand = ReactiveCommand.CreateFromTask(GoToSettingsAsync);
+            GoToStatisticsCommand = ReactiveCommand.CreateFromTask(GoToStatsAsync);
             GoToMainCommand = ReactiveCommand.CreateFromTask(GoToMainAsync);
             StartCameraCommand = ReactiveCommand.CreateFromTask(StartCameraAsync);
             StopCameraCommand = ReactiveCommand.CreateFromTask(StopCameraAsync);
@@ -198,12 +200,22 @@ namespace Client.ViewModels
 
         private async Task GoToSettingsAsync()
         {
+            _cameraService.StopCapture();
+
             await _navigationService.NavigateToSettingsAsync();
         }
 
         private async Task GoToMainAsync()
         {
+            _cameraService.StopCapture();
+
             await _navigationService.NavigateToMainAsync();
+        }
+        private async Task GoToStatsAsync()
+        {
+            _cameraService.StopCapture();
+
+            await _navigationService.NavigateToStatisticsAsync();
         }
     }
 }

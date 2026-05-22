@@ -176,6 +176,7 @@ namespace Client.ViewModels
 
         public ReactiveCommand<Unit, Unit> OpenVideoCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToSettingsCommand { get; }
+        public ReactiveCommand<Unit, Unit> GoToStatisticsCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToStreamCommand { get; }
         public ReactiveCommand<Unit, Unit> LogoutCommand { get; }
         public ReactiveCommand<Unit, Unit> StopStreamCommand { get; }
@@ -208,6 +209,7 @@ namespace Client.ViewModels
             StopStreamCommand = ReactiveCommand.CreateFromTask(StopStreamAsync);
             RefreshCommand = ReactiveCommand.CreateFromTask(LoadData);
             AddCommentCommand = ReactiveCommand.CreateFromTask(AddCommentAsync);
+            GoToStatisticsCommand = ReactiveCommand.CreateFromTask(GoToStatsAsync);
         }
 
         public async Task InitializeAsync()
@@ -624,7 +626,12 @@ namespace Client.ViewModels
             IsAlertActive = false;
             await _navigationService.NavigateToStreamAsync();
         }
-
+        private async Task GoToStatsAsync()
+        {
+            await StopVideoAndAnalysisAsync();
+            IsAlertActive = false;
+            await _navigationService.NavigateToStatisticsAsync();
+        }
         private async Task LogoutAsync()
         {
             _journalRefreshTimer.Stop();

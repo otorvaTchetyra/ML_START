@@ -109,6 +109,7 @@ namespace Client.ViewModels
         public ReactiveCommand<Unit, Unit> TestConnectionCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToMainCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToStreamCommand { get; }
+        public ReactiveCommand<Unit, Unit> GoToStatisticsCommand { get; }
         public ReactiveCommand<Unit, Unit> DropDBCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToAdminHomeCommand { get; }
 
@@ -135,6 +136,7 @@ namespace Client.ViewModels
             GoToStreamCommand = ReactiveCommand.CreateFromTask(GoToStreamAsync);
             DropDBCommand = ReactiveCommand.CreateFromTask(DropDBAsync);
             GoToAdminHomeCommand = ReactiveCommand.CreateFromTask(() => _navigationService.NavigateToAdminHomeAsync());
+            GoToStatisticsCommand = ReactiveCommand.CreateFromTask(() => _navigationService.NavigateToStatisticsAsync());
         }
 
         private async Task GoToMainAsync()

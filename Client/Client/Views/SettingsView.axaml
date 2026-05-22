@@ -75,6 +75,9 @@
                             Command="{Binding GoToAdminHomeCommand}"
                             IsVisible="{Binding IsAdmin}"/>
                     <Button Classes="secondary"
+                            Content="График"
+                            Command="{Binding GoToStatisticsCommand}"/>
+                    <Button Classes="secondary"
                             Content="Видео"
                             Command="{Binding GoToMainCommand}"/>
                     <Button Classes="secondary"

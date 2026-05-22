@@ -162,6 +162,7 @@ namespace Client
             Locator.CurrentMutable.Register<IViewFor<RegisterViewModel>>(() => new RegisterView());
             Locator.CurrentMutable.Register<IViewFor<LoginViewModel>>(() => new LoginView());
             Locator.CurrentMutable.Register<IViewFor<SettingsViewModel>>(() => new SettingsView());
+            Locator.CurrentMutable.Register<IViewFor<StatisticsViewModel>>(() => new StatisticsView());
             Locator.CurrentMutable.Register<IViewFor<MainViewModel>>(() => new MainView());
             Locator.CurrentMutable.Register<IViewFor<StreamViewModel>>(() => new StreamView());
             Locator.CurrentMutable.Register<IViewFor<AdminHomeViewModel>>(() => new AdminHomeView());
