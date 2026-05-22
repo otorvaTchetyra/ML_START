@@ -386,6 +386,7 @@ namespace Client.ViewModels
             CurrentFrameInfo = new StreamFrame();
             if (videoEnded)
                 StatusText = "Видео завершено";
+            _ = LoadEventsFastAsync();
         }
 
         public async Task StartVideoAndAnalysisAsync()
@@ -412,14 +413,16 @@ namespace Client.ViewModels
                     });
                 });
 
-                await _streamService.SendVideoAsync(VideoPath, OnStreamFrame, uploadProgress, () =>
-                {
-                    Dispatcher.UIThread.Post(() =>
+                await _streamService.SendVideoAsync(VideoPath, OnStreamFrame, uploadProgress,
+                    onUploadComplete: () =>
                     {
-                        LoadingText = "Анализ видео...";
-                        IsLoadingIndeterminate = true;
-                    });
-                });
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            LoadingText = "Анализ видео...";
+                            IsLoadingIndeterminate = true;
+                        });
+                    },
+                    onStreamEnded: () => Dispatcher.UIThread.Post(() => _ = LoadEventsFastAsync()));
 
                 _isAnalysisActive = true;
                 StatusText = "Анализ видео запущен";

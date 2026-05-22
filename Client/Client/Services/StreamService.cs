@@ -22,7 +22,7 @@ namespace Client.Services
             _apiClient = apiClient;
         }
 
-        public async Task SendVideoAsync(string path, Action<StreamFrame> onFrameReceived, IProgress<double>? uploadProgress = null, Action? onUploadComplete = null)
+        public async Task SendVideoAsync(string path, Action<StreamFrame> onFrameReceived, IProgress<double>? uploadProgress = null, Action? onUploadComplete = null, Action? onStreamEnded = null)
         {
             await StopAsync();
 
@@ -32,7 +32,7 @@ namespace Client.Services
             var stream = await response.Content.ReadAsStreamAsync();
             _activeStream = stream;
             _streamCancellation = new CancellationTokenSource();
-            _streamReadingTask = Task.Run(() => ReadStreamAsync(stream, onFrameReceived, _streamCancellation.Token));
+            _streamReadingTask = Task.Run(() => ReadStreamAsync(stream, onFrameReceived, onStreamEnded, _streamCancellation.Token));
         }
 
         public async Task StartCameraAsync(string num, Action<StreamFrame> onFrameReceived)
@@ -44,7 +44,7 @@ namespace Client.Services
             var stream = await response.Content.ReadAsStreamAsync();
             _activeStream = stream;
             _streamCancellation = new CancellationTokenSource();
-            _streamReadingTask = Task.Run(() => ReadStreamAsync(stream, onFrameReceived, _streamCancellation.Token));
+            _streamReadingTask = Task.Run(() => ReadStreamAsync(stream, onFrameReceived, null, _streamCancellation.Token));
         }
 
         public async Task<HealthStatus?> GetStatusAsync()
@@ -79,9 +79,10 @@ namespace Client.Services
             _activeResponse = null;
         }
 
-        private async Task ReadStreamAsync(Stream stream, Action<StreamFrame> onFrameReceived, CancellationToken cancellationToken)
+        private async Task ReadStreamAsync(Stream stream, Action<StreamFrame> onFrameReceived, Action? onStreamEnded, CancellationToken cancellationToken)
         {
             using var reader = new StreamReader(stream);
+            bool endedNaturally = false;
             try
             {
                 _isStreaming = true;
@@ -93,7 +94,10 @@ namespace Client.Services
                 {
                     var line = await reader.ReadLineAsync(cancellationToken);
                     if (line == null)
+                    {
+                        endedNaturally = true;
                         break;
+                    }
 
                     if (string.IsNullOrWhiteSpace(line))
                         continue;
@@ -118,6 +122,9 @@ namespace Client.Services
             {
                 System.Diagnostics.Debug.WriteLine(ex.Message);
             }
+
+            if (endedNaturally)
+                onStreamEnded?.Invoke();
         }
     }
 }
