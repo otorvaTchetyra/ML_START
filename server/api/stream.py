@@ -32,6 +32,9 @@ _frame_version: int = 0
 _frame_cond: asyncio.Condition | None = None
 _last_event_saved_at: float = 0.0
 _EVENT_SAVE_INTERVAL: float = 30.0
+_granule_threshold: int = 50
+_feeding_schedule: list[dict] = []
+_frame_skip: int = 1
 
 
 def _get_frame_cond() -> asyncio.Condition:
@@ -137,7 +140,11 @@ def _open_capture(source: str) -> cv2.VideoCapture:
 
 
 async def _process_video_stream(source: str, app_settings: dict, cleanup_path: str | None = None):
-    global _is_running, _latest_jpeg
+    global _is_running, _latest_jpeg, _granule_threshold, _feeding_schedule, _frame_skip
+
+    _granule_threshold = app_settings.get("granule_threshold", 50)
+    _feeding_schedule = app_settings.get("feeding_schedule", [])
+    _frame_skip = max(1, app_settings.get("frame_skip", 1))
 
     _latest_jpeg = None
     detector = get_detector()
@@ -146,9 +153,6 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
     counter.reset()
     tracker.reset()
 
-    threshold: int = app_settings.get("granule_threshold", 50)
-    schedule: list[dict] = app_settings.get("feeding_schedule", [])
-    frame_skip: int = max(1, app_settings.get("frame_skip", 1))
     is_camera = source.isdigit()
 
     cap = _open_capture(source)
@@ -175,7 +179,7 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
             if not ret:
                 break
 
-            if frame_index % frame_skip != 0:
+            if frame_index % _frame_skip != 0:
                 frame_index += 1
                 continue
 
@@ -190,8 +194,8 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
                 frame_index += 1
                 continue
 
-            threshold_exceeded = result.granule_count > threshold
-            out_of_schedule = not _is_in_schedule(schedule) and result.granule_count > 0
+            threshold_exceeded = result.granule_count > _granule_threshold
+            out_of_schedule = not _is_in_schedule(_feeding_schedule) and result.granule_count > 0
 
             if threshold_exceeded or out_of_schedule:
                 now_mono = monotonic()

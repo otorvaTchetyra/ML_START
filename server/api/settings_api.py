@@ -62,4 +62,12 @@ def update_settings(data: SettingsUpdate, db: Session = Depends(get_db), _ = Dep
         from api.stream import get_tracker
         get_tracker().iou_threshold = updates["tracker_iou_threshold"]
 
+    import api.stream as _stream
+    if "granule_threshold" in updates:
+        _stream._granule_threshold = updates["granule_threshold"]
+    if "feeding_schedule" in updates:
+        _stream._feeding_schedule = updates["feeding_schedule"]
+    if "frame_skip" in updates:
+        _stream._frame_skip = max(1, updates["frame_skip"])
+
     return get_current_settings(db)
