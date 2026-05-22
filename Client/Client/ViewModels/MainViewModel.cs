@@ -421,7 +421,12 @@ namespace Client.ViewModels
                             IsLoadingIndeterminate = true;
                         });
                     },
-                    onStreamEnded: () => Dispatcher.UIThread.Post(() => _ = LoadEventsFastAsync()));
+                    onStreamEnded: () => Dispatcher.UIThread.Post(async () =>
+                    {
+                        _isAnalysisActive = false;
+                        StatusText = "Анализ завершён, загрузка событий...";
+                        await LoadEventsFastAsync();
+                    }));
 
                 _isAnalysisActive = true;
                 StatusText = "Анализ видео запущен";
