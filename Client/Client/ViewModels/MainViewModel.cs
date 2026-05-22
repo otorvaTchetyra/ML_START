@@ -233,10 +233,9 @@ namespace Client.ViewModels
             try
             {
                 var events = await _eventsService.GetEventsAsync();
-                Events.Clear();
-                if (events != null)
-                    foreach (var e in events)
-                        Events.Add(e);
+                Events = events != null
+                    ? new ObservableCollection<FeedingEvent>(events)
+                    : new ObservableCollection<FeedingEvent>();
                 StatusText = $"Загружено событий: {Events.Count}";
             }
             catch
