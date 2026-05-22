@@ -59,17 +59,14 @@ namespace Client.Services
             _activeStream?.Dispose();
             _activeResponse?.Dispose();
 
-            try
+            _ = Task.Run(async () =>
             {
-                await _apiClient.PostAsync<object>("/stream/stop", new { });
-            }
-            catch
-            {
-            }
+                try { await _apiClient.PostAsync<object>("/stream/stop", new { }); } catch { }
+            });
 
             if (_streamReadingTask != null)
             {
-                try { await Task.WhenAny(_streamReadingTask, Task.Delay(500)); } catch { }
+                try { await Task.WhenAny(_streamReadingTask, Task.Delay(100)); } catch { }
                 _streamReadingTask = null;
             }
 
