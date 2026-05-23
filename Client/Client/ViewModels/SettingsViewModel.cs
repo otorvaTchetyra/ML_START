@@ -195,7 +195,9 @@ namespace Client.ViewModels
             {
                 var serverSettings = await _apiClient.GetAsync<ServerSettingsResponse>("/settings");
                 if (serverSettings != null)
+                {
                     GranuleThreshold = serverSettings.GranuleThreshold;
+                }
             }
             catch
             {
