@@ -67,13 +67,24 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Rectangle Stroke="Red"
-                                               StrokeThickness="2"
-                                               Fill="Transparent"
-                                               Width="{Binding Width}"
-                                               Height="{Binding Height}"
-                                               Canvas.Left="{Binding x1}"
-                                               Canvas.Top="{Binding y1}" />
+                                    <Canvas>
+                                        <Rectangle Stroke="Red"
+                                                   StrokeThickness="2"
+                                                   Fill="Transparent"
+                                                   Width="{Binding Width}"
+                                                   Height="{Binding Height}"
+                                                   Canvas.Left="{Binding x1}"
+                                                   Canvas.Top="{Binding y1}" />
+                                        <Border Canvas.Left="{Binding x1}"
+                                                Canvas.Top="{Binding y1}"
+                                                Background="#CC000000"
+                                                Padding="3,1"
+                                                IsVisible="{Binding HasLabel}">
+                                            <TextBlock Text="{Binding label}"
+                                                       Foreground="White"
+                                                       FontSize="11"/>
+                                        </Border>
+                                    </Canvas>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -126,10 +137,10 @@
                                     Command="{Binding StartChannel2Command}"
                                     Width="90"
                                     Background="{Binding ActiveChannel, Converter={x:Static conv:ChannelColorConverter.Instance}, ConverterParameter=2}"/>
-                            <TextBox Text="{Binding Channel2Source}"
-                                     Watermark="URL или номер камеры"
-                                     Width="260"
-                                     FontSize="11"/>
+                            <TextBlock Text="sochi.camera/vse-kamery/cam-40/"
+                                       Foreground="Gray"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="8">

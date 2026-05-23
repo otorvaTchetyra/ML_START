@@ -35,13 +35,7 @@ namespace Client.ViewModels
         }
 
         private const string Channel1Url = "https://www.youtube.com/watch?v=7i8ARjIeM2k";
-
-        private string _channel2Source = "";
-        public string Channel2Source
-        {
-            get => _channel2Source;
-            set => this.RaiseAndSetIfChanged(ref _channel2Source, value);
-        }
+        private const string Channel2Url = "https://sochi.camera/vse-kamery/cam-40/";
 
         private string _channel3Source = "";
         public string Channel3Source
@@ -132,7 +126,7 @@ namespace Client.ViewModels
             GoToStatisticsCommand = ReactiveCommand.CreateFromTask(GoToStatsAsync);
             GoToMainCommand = ReactiveCommand.CreateFromTask(GoToMainAsync);
             StartChannel1Command = ReactiveCommand.CreateFromTask(() => StartStreamAsync(Channel1Url, 1));
-            StartChannel2Command = ReactiveCommand.CreateFromTask(() => StartStreamAsync(Channel2Source, 2));
+            StartChannel2Command = ReactiveCommand.CreateFromTask(() => StartStreamAsync(Channel2Url, 2));
             StartChannel3Command = ReactiveCommand.CreateFromTask(() => StartStreamAsync(Channel3Source, 3));
             StopCameraCommand = ReactiveCommand.CreateFromTask(StopCameraAsync);
             SetDetectionModeCommand = ReactiveCommand.CreateFromTask<string>(SetDetectionModeAsync);
@@ -167,14 +161,15 @@ namespace Client.ViewModels
 
         private async Task StartStreamAsync(string source, int channel)
         {
-            if (_isCapturing)
-                return;
-
             if (string.IsNullOrWhiteSpace(source))
             {
                 StatusText = $"Канал {channel}: укажите источник";
                 return;
             }
+
+            _isCapturing = false;
+            _mjpegCts?.Cancel();
+            _mjpegCts = null;
 
             _isCapturing = true;
             ActiveChannel = channel;

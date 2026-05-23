@@ -43,6 +43,7 @@ class GranuleDetector:
             for box in result.boxes:
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
                 conf = float(box.conf[0])
+                label = ""
                 if mode == "granule":
                     if (x2 - x1) / w > 0.12 or (y2 - y1) / h > 0.12:
                         continue
@@ -51,7 +52,8 @@ class GranuleDetector:
                     cls_name = (result.names or {}).get(cls_idx, "")
                     if cls_name not in _FISH_CLASSES:
                         continue
-                detections.append(Detection(x1=x1, y1=y1, x2=x2, y2=y2, confidence=conf))
+                    label = cls_name
+                detections.append(Detection(x1=x1, y1=y1, x2=x2, y2=y2, confidence=conf, label=label))
         return detections
 
     def update_params(self, confidence: float | None = None, iou: float | None = None) -> None:

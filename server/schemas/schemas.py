@@ -41,6 +41,7 @@ class BBox(BaseModel):
     x2: float
     y2: float
     confidence: float
+    label: str = ""
 
 class FrameAnalysisResponse(BaseModel):
     frame_index: int

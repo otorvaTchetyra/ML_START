@@ -133,6 +133,34 @@ def _save_event(granule_count: int, intensity_per_sec: float, intensity_per_min:
         db.close()
 
 
+def _resolve_sochi_camera(url: str) -> str:
+    try:
+        import re
+        import urllib.request
+        import json as _json
+
+        _UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+
+        m = re.search(r'/vse-kamery/(cam-\d+)/', url)
+        if m:
+            cam_paths = [f"/vse-kamery/{m.group(1)}/"]
+        else:
+            req = urllib.request.Request(url, headers={"User-Agent": _UA})
+            page = urllib.request.urlopen(req, timeout=10).read().decode("utf-8", errors="ignore")
+            cam_paths = re.findall(r'/vse-kamery/cam-\d+/', page)
+        if not cam_paths:
+            return url
+        api_url = "https://sochi.camera" + cam_paths[0] + "?format=json"
+        req = urllib.request.Request(api_url, headers={"User-Agent": _UA})
+        raw = urllib.request.urlopen(req, timeout=10).read().decode("utf-8-sig")
+        data = _json.loads(raw)
+        hls = data.get("hd_url") or data.get("sd_url") or ""
+        return hls if hls else url
+    except Exception as exc:
+        logger.warning("sochi.camera resolve failed: %s", exc)
+        return url
+
+
 def _resolve_stream_url(url: str) -> str:
     try:
         import yt_dlp
@@ -148,10 +176,24 @@ def _resolve_stream_url(url: str) -> str:
 def _open_capture(source: str) -> cv2.VideoCapture:
     if source.isdigit():
         return cv2.VideoCapture(int(source))
-    _YT_HOSTS = ("youtube.com", "youtu.be", "www.youtube.com")
-    if any(h in source for h in _YT_HOSTS):
-        source = _resolve_stream_url(source)
-    return cv2.VideoCapture(source)
+    if "sochi.camera" in source:
+        resolved = _resolve_sochi_camera(source)
+        if resolved != source:
+            logger.info("sochi resolved -> %s", resolved[:80])
+            source = resolved
+    elif source.startswith("http"):
+        resolved = _resolve_stream_url(source)
+        if resolved != source:
+            logger.info("resolved %s -> %s", source, resolved[:80])
+            source = resolved
+    cap = cv2.VideoCapture()
+    cap.open(source, cv2.CAP_FFMPEG, [
+        cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000,
+        cv2.CAP_PROP_READ_TIMEOUT_MSEC, 10000,
+    ])
+    if not cap.isOpened():
+        cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
+    return cap
 
 
 def _read_and_process_frame(cap: cv2.VideoCapture, detector, tracker, counter,
@@ -196,7 +238,8 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
         if cleanup_path:
             Path(cleanup_path).unlink(missing_ok=True)
         _log_error(f"Не удалось открыть источник: {source}")
-        raise HTTPException(status_code=400, detail="Не удалось открыть источник видео")
+        yield '{"error": "Не удалось открыть источник видео"}\n'
+        return
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
     src_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -206,10 +249,11 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
     try:
         while _is_running:
             try:
+                effective_skip = max(_frame_skip, 8) if detector._mode == "fish" else _frame_skip
                 outcome = await loop.run_in_executor(
                     None, _read_and_process_frame,
                     cap, detector, tracker, counter,
-                    frame_index, _frame_skip, fps, is_camera,
+                    frame_index, effective_skip, fps, is_camera,
                     _granule_threshold, list(_feeding_schedule),
                 )
             except Exception as exc:
@@ -248,7 +292,7 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
                 threshold_exceeded=threshold_exceeded,
                 out_of_schedule=out_of_schedule,
                 bboxes=[
-                    BBox(x1=d.x1, y1=d.y1, x2=d.x2, y2=d.y2, confidence=d.confidence)
+                    BBox(x1=d.x1, y1=d.y1, x2=d.x2, y2=d.y2, confidence=d.confidence, label=d.label)
                     for d in detections
                 ],
                 source_width=src_width,

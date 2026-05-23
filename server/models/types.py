@@ -8,6 +8,7 @@ class Detection:
     x2: float
     y2: float
     confidence: float
+    label: str = ""
 
     @property
     def bbox(self) -> tuple[float, float, float, float]:
