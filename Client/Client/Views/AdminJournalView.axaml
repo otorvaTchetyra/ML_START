@@ -45,7 +45,7 @@
                         Margin="0,0,0,12"/>
 
                 <Border Grid.Row="1"
-                        MaxWidth="720"
+                        MaxWidth="840"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Top"
                         CornerRadius="28"
@@ -54,7 +54,7 @@
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1">
                     <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="14">
-                        <StackPanel Spacing="8">
+                        <StackPanel Grid.Row="0" Spacing="8">
                             <TextBlock Text="Журнал пользователей"
                                        FontSize="26"
                                        FontWeight="Bold"
@@ -65,11 +65,16 @@
                                        TextWrapping="Wrap"/>
                         </StackPanel>
 
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <Grid Grid.Row="1"
+                              ColumnDefinitions="*,Auto"
+                              ColumnSpacing="12"
+                              VerticalAlignment="Center">
                             <ComboBox Grid.Column="0"
                                       Classes="journal-filter"
                                       ItemsSource="{Binding FilterOptions}"
-                                      SelectedItem="{Binding SelectedFilter, Mode=TwoWay}"/>
+                                      SelectedItem="{Binding SelectedFilter, Mode=TwoWay}"
+                                      MaxWidth="260"
+                                      HorizontalAlignment="Left"/>
                             <Button Grid.Column="1"
                                     Classes="secondary"
                                     Content="Обновить"
