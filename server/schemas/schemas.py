@@ -110,6 +110,7 @@ class SettingsUpdate(BaseModel):
     feeding_schedule: list[dict] | None = None
     frame_skip: int | None = None
     tracker_iou_threshold: float | None = None
+    active_model: str | None = None
 
 class SettingsResponse(BaseModel):
     granule_threshold: int
@@ -119,6 +120,7 @@ class SettingsResponse(BaseModel):
     feeding_schedule: list[dict]
     frame_skip: int
     tracker_iou_threshold: float
+    active_model: str
 
 
 # ── Logs ──────────────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Client.ViewModels"
+             xmlns:conv="using:Client.Converters"
              xmlns:media="using:Iciclecreek.Avalonia.Controls.Media"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -54,6 +55,10 @@
                     </Grid.RowDefinitions>
 
                     <Grid Grid.Row="0">
+                        <Image Source="{Binding CurrentFrame}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"/>
                         <ItemsControl ItemsSource="{Binding CurrentFrameInfo.bboxes}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -75,14 +80,73 @@
                     </Grid>
 
                     <StackPanel Grid.Row="1"
-                                Orientation="Horizontal"
-                                HorizontalAlignment="Right"
-                                Spacing="10"
+                                Orientation="Vertical"
+                                Spacing="6"
                                 Margin="0,10">
-                        <Button Content="Включить стрим"
-                                Command="{Binding StartCameraCommand}"/>
-                        <Button Content="Остановить стрим"
-                                Command="{Binding StopCameraCommand}"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="Детекция:"
+                                       Foreground="Gray"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,4,0"/>
+                            <Button Content="Гранулы"
+                                    Width="80"
+                                    FontSize="11"
+                                    Command="{Binding SetDetectionModeCommand}"
+                                    CommandParameter="granule"
+                                    Background="{Binding DetectionMode, Converter={x:Static conv:StringEqualColorConverter.Instance}, ConverterParameter=granule}"/>
+                            <Button Content="Рыбы"
+                                    Width="65"
+                                    FontSize="11"
+                                    Command="{Binding SetDetectionModeCommand}"
+                                    CommandParameter="fish"
+                                    Background="{Binding DetectionMode, Converter={x:Static conv:StringEqualColorConverter.Instance}, ConverterParameter=fish}"/>
+                            <Button Content="Выкл"
+                                    Width="55"
+                                    FontSize="11"
+                                    Command="{Binding SetDetectionModeCommand}"
+                                    CommandParameter="off"
+                                    Background="{Binding DetectionMode, Converter={x:Static conv:StringEqualColorConverter.Instance}, ConverterParameter=off}"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Канал 1"
+                                    Command="{Binding StartChannel1Command}"
+                                    Width="90"
+                                    Background="{Binding ActiveChannel, Converter={x:Static conv:ChannelColorConverter.Instance}, ConverterParameter=1}"/>
+                            <TextBlock Text="youtube.com/watch?v=7i8ARjIeM2k"
+                                       Foreground="Gray"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Канал 2"
+                                    Command="{Binding StartChannel2Command}"
+                                    Width="90"
+                                    Background="{Binding ActiveChannel, Converter={x:Static conv:ChannelColorConverter.Instance}, ConverterParameter=2}"/>
+                            <TextBox Text="{Binding Channel2Source}"
+                                     Watermark="URL или номер камеры"
+                                     Width="260"
+                                     FontSize="11"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Канал 3"
+                                    Command="{Binding StartChannel3Command}"
+                                    Width="90"
+                                    Background="{Binding ActiveChannel, Converter={x:Static conv:ChannelColorConverter.Instance}, ConverterParameter=3}"/>
+                            <TextBox Text="{Binding Channel3Source}"
+                                     Watermark="URL или номер камеры"
+                                     Width="260"
+                                     FontSize="11"/>
+                        </StackPanel>
+
+                        <Button Content="Остановить"
+                                Command="{Binding StopCameraCommand}"
+                                HorizontalAlignment="Left"
+                                Width="90"/>
                     </StackPanel>
                 </Grid>
             </Grid>

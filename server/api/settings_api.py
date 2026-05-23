@@ -17,6 +17,7 @@ _DEFAULTS = {
     "feeding_schedule": [],
     "frame_skip": cfg.frame_skip,
     "tracker_iou_threshold": cfg.tracker_iou_threshold,
+    "active_model": "granule",
 }
 
 
@@ -69,5 +70,13 @@ def update_settings(data: SettingsUpdate, db: Session = Depends(get_db), _ = Dep
         _stream._feeding_schedule = updates["feeding_schedule"]
     if "frame_skip" in updates:
         _stream._frame_skip = max(1, updates["frame_skip"])
-
+    if "active_model" in updates:
+        mode = updates["active_model"]
+        if mode == "off":
+            get_detector().set_mode("off")
+        else:
+            path = cfg.fish_model_path if mode == "fish" else cfg.model_path
+            import threading
+            detector = get_detector()
+            threading.Thread(target=lambda: detector.load_weights(path, mode), daemon=True).start()
     return get_current_settings(db)

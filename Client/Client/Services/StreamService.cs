@@ -35,16 +35,36 @@ namespace Client.Services
             _streamReadingTask = Task.Run(() => ReadStreamAsync(stream, onFrameReceived, onStreamEnded, _streamCancellation.Token));
         }
 
-        public async Task StartCameraAsync(string num, Action<StreamFrame> onFrameReceived)
+        public async Task StartCameraAsync(string num, Action<StreamFrame> onFrameReceived, Action? onStreamEnded = null)
         {
-            await StopAsync();
+            _isStreaming = false;
+            _streamCancellation?.Cancel();
+            _activeStream?.Dispose();
+            _activeResponse?.Dispose();
+
+            try { await _apiClient.PostAsync<object>("/stream/stop", new { }); } catch { }
+
+            if (_streamReadingTask != null)
+            {
+                try { await Task.WhenAny(_streamReadingTask, Task.Delay(200)); } catch { }
+                _streamReadingTask = null;
+            }
+            _streamCancellation?.Dispose();
+            _streamCancellation = null;
+            _activeStream = null;
+            _activeResponse = null;
 
             var response = await _apiClient.PostRawAsync("/stream/start", new { source = num });
             _activeResponse = response;
             var stream = await response.Content.ReadAsStreamAsync();
             _activeStream = stream;
             _streamCancellation = new CancellationTokenSource();
-            _streamReadingTask = Task.Run(() => ReadStreamAsync(stream, onFrameReceived, null, _streamCancellation.Token));
+            _streamReadingTask = Task.Run(() => ReadStreamAsync(stream, onFrameReceived, onStreamEnded, _streamCancellation.Token));
+        }
+
+        public async Task SetDetectionModeAsync(string mode)
+        {
+            try { await _apiClient.PatchAsync<object>("/settings", new { active_model = mode }); } catch { }
         }
 
         public async Task<HealthStatus?> GetStatusAsync()

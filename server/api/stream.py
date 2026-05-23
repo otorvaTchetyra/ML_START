@@ -133,10 +133,44 @@ def _save_event(granule_count: int, intensity_per_sec: float, intensity_per_min:
         db.close()
 
 
+def _resolve_stream_url(url: str) -> str:
+    try:
+        import yt_dlp
+        ydl_opts = {"quiet": True, "no_warnings": True, "format": "b"}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return info.get("url") or url
+    except Exception as exc:
+        logger.warning("yt-dlp resolve failed for %s: %s", url, exc)
+        return url
+
+
 def _open_capture(source: str) -> cv2.VideoCapture:
     if source.isdigit():
         return cv2.VideoCapture(int(source))
+    _YT_HOSTS = ("youtube.com", "youtu.be", "www.youtube.com")
+    if any(h in source for h in _YT_HOSTS):
+        source = _resolve_stream_url(source)
     return cv2.VideoCapture(source)
+
+
+def _read_and_process_frame(cap: cv2.VideoCapture, detector, tracker, counter,
+                             frame_index: int, frame_skip: int, fps: float, is_camera: bool,
+                             granule_threshold: int, feeding_schedule: list):
+    ret, frame = cap.read()
+    if not ret:
+        return None
+    if frame_index % frame_skip != 0:
+        return False
+    ts = monotonic() if is_camera else frame_index / fps
+    detections = detector.detect(frame)
+    new_detections = tracker.update(detections)
+    result = counter.process_frame(new_detections, timestamp=ts)
+    threshold_exceeded = result.granule_count > granule_threshold
+    out_of_schedule = not _is_in_schedule(feeding_schedule) and result.granule_count > 0
+    jpeg = _render_overlay(frame, detections, result.granule_count,
+                           result.intensity_per_sec, threshold_exceeded)
+    return frame, detections, result, ts, threshold_exceeded, out_of_schedule, jpeg
 
 
 async def _process_video_stream(source: str, app_settings: dict, cleanup_path: str | None = None):
@@ -154,8 +188,9 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
     tracker.reset()
 
     is_camera = source.isdigit()
+    loop = asyncio.get_event_loop()
 
-    cap = _open_capture(source)
+    cap = await loop.run_in_executor(None, _open_capture, source)
     if not cap.isOpened():
         _is_running = False
         if cleanup_path:
@@ -171,31 +206,26 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
     try:
         while _is_running:
             try:
-                ret, frame = cap.read()
-            except Exception as exc:
-                _log_error(f"Ошибка чтения кадра {frame_index}: {exc}")
-                await asyncio.sleep(0.05)
-                continue
-            if not ret:
-                break
-
-            if frame_index % _frame_skip != 0:
-                frame_index += 1
-                continue
-
-            ts = monotonic() if is_camera else frame_index / fps
-
-            try:
-                detections = detector.detect(frame)
-                new_detections = tracker.update(detections)
-                result = counter.process_frame(new_detections, timestamp=ts)
+                outcome = await loop.run_in_executor(
+                    None, _read_and_process_frame,
+                    cap, detector, tracker, counter,
+                    frame_index, _frame_skip, fps, is_camera,
+                    _granule_threshold, list(_feeding_schedule),
+                )
             except Exception as exc:
                 _log_error(f"Ошибка обработки кадра {frame_index}: {exc}")
                 frame_index += 1
+                await asyncio.sleep(0)
                 continue
 
-            threshold_exceeded = result.granule_count > _granule_threshold
-            out_of_schedule = not _is_in_schedule(_feeding_schedule) and result.granule_count > 0
+            if outcome is None:
+                break
+            if outcome is False:
+                frame_index += 1
+                await asyncio.sleep(0)
+                continue
+
+            frame, detections, result, ts, threshold_exceeded, out_of_schedule, jpeg = outcome
 
             if threshold_exceeded or out_of_schedule:
                 now_mono = monotonic()
@@ -225,8 +255,6 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
                 source_height=src_height,
             )
 
-            jpeg = _render_overlay(frame, detections, result.granule_count,
-                                   result.intensity_per_sec, threshold_exceeded)
             if jpeg is not None:
                 await _publish_frame(jpeg)
 

@@ -136,7 +136,7 @@ namespace Client
             services.AddTransient<RegisterViewModel>();
             services.AddTransient<StatisticsViewModel>();
             services.AddTransient<SettingsViewModel>();
-            services.AddTransient<StreamViewModel>();
+            services.AddSingleton<StreamViewModel>();
             services.AddTransient<AdminHomeViewModel>();
             services.AddTransient<AdminUsersViewModel>();
             services.AddTransient<AdminJournalViewModel>();
@@ -152,7 +152,7 @@ namespace Client
             services.AddScoped<LogsService>();
             services.AddScoped<UsersService>();
             services.AddScoped<JournalService>();
-            services.AddScoped<CameraCaptureService>();
+            services.AddSingleton<CameraCaptureService>();
 
             return services.BuildServiceProvider();
         }

@@ -1,10 +1,13 @@
+using Avalonia.Media.Imaging;
 using Client.Models;
 using Client.Services;
 using ReactiveUI;
 using System;
 using System.Collections.ObjectModel;
 using System.Reactive;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Client.ViewModels
 {
@@ -22,6 +25,37 @@ namespace Client.ViewModels
         private readonly StreamService _streamService;
         private readonly CameraCaptureService _cameraService;
         private bool _isCapturing;
+        private CancellationTokenSource? _mjpegCts;
+
+        private Bitmap? _currentFrame;
+        public Bitmap? CurrentFrame
+        {
+            get => _currentFrame;
+            set => this.RaiseAndSetIfChanged(ref _currentFrame, value);
+        }
+
+        private const string Channel1Url = "https://www.youtube.com/watch?v=7i8ARjIeM2k";
+
+        private string _channel2Source = "";
+        public string Channel2Source
+        {
+            get => _channel2Source;
+            set => this.RaiseAndSetIfChanged(ref _channel2Source, value);
+        }
+
+        private string _channel3Source = "";
+        public string Channel3Source
+        {
+            get => _channel3Source;
+            set => this.RaiseAndSetIfChanged(ref _channel3Source, value);
+        }
+
+        private int _activeChannel = 0;
+        public int ActiveChannel
+        {
+            get => _activeChannel;
+            set => this.RaiseAndSetIfChanged(ref _activeChannel, value);
+        }
 
         private StreamFrame _currentFrameInfo = new();
         public StreamFrame CurrentFrameInfo
@@ -61,11 +95,21 @@ namespace Client.ViewModels
             set => this.RaiseAndSetIfChanged(ref _serverStatusColor, value);
         }
 
+        private string _detectionMode = "granule";
+        public string DetectionMode
+        {
+            get => _detectionMode;
+            set => this.RaiseAndSetIfChanged(ref _detectionMode, value);
+        }
+
         public ReactiveCommand<Unit, Unit> GoToSettingsCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToStatisticsCommand { get; }
         public ReactiveCommand<Unit, Unit> GoToMainCommand { get; }
-        public ReactiveCommand<Unit, Unit> StartCameraCommand { get; }
+        public ReactiveCommand<Unit, Unit> StartChannel1Command { get; }
+        public ReactiveCommand<Unit, Unit> StartChannel2Command { get; }
+        public ReactiveCommand<Unit, Unit> StartChannel3Command { get; }
         public ReactiveCommand<Unit, Unit> StopCameraCommand { get; }
+        public ReactiveCommand<string, Unit> SetDetectionModeCommand { get; }
 
         public StreamViewModel(
             IScreen screen,
@@ -87,8 +131,11 @@ namespace Client.ViewModels
             GoToSettingsCommand = ReactiveCommand.CreateFromTask(GoToSettingsAsync);
             GoToStatisticsCommand = ReactiveCommand.CreateFromTask(GoToStatsAsync);
             GoToMainCommand = ReactiveCommand.CreateFromTask(GoToMainAsync);
-            StartCameraCommand = ReactiveCommand.CreateFromTask(StartCameraAsync);
+            StartChannel1Command = ReactiveCommand.CreateFromTask(() => StartStreamAsync(Channel1Url, 1));
+            StartChannel2Command = ReactiveCommand.CreateFromTask(() => StartStreamAsync(Channel2Source, 2));
+            StartChannel3Command = ReactiveCommand.CreateFromTask(() => StartStreamAsync(Channel3Source, 3));
             StopCameraCommand = ReactiveCommand.CreateFromTask(StopCameraAsync);
+            SetDetectionModeCommand = ReactiveCommand.CreateFromTask<string>(SetDetectionModeAsync);
         }
 
         public async Task InitializeAsync()
@@ -118,22 +165,59 @@ namespace Client.ViewModels
             }
         }
 
-        private async Task StartCameraAsync()
+        private async Task StartStreamAsync(string source, int channel)
         {
             if (_isCapturing)
                 return;
 
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                StatusText = $"Канал {channel}: укажите источник";
+                return;
+            }
+
             _isCapturing = true;
+            ActiveChannel = channel;
 
             _ = _journalService.RecordAsync(
                 eventCode: "stream_started",
-                message: "Запущен анализ потока с камеры",
+                message: $"Запущен анализ потока, канал {channel}",
                 source: "stream",
                 action: "start",
                 level: "info");
 
-            await _streamService.StartCameraAsync("0", OnStreamFrame);
-            await _cameraService.StartCaptureAsync(0);
+            try
+            {
+                await _streamService.StartCameraAsync(source, OnStreamFrame, onStreamEnded: () =>
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        _isCapturing = false;
+                        ActiveChannel = 0;
+                        _mjpegCts?.Cancel();
+                        _mjpegCts = null;
+                        StatusText = "Поток завершён";
+                    });
+                });
+            }
+            catch
+            {
+                _isCapturing = false;
+                ActiveChannel = 0;
+                StatusText = "Не удалось подключиться к потоку";
+                return;
+            }
+
+            _mjpegCts = new CancellationTokenSource();
+            var token = _mjpegCts.Token;
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(500, token);
+                await _cameraService.StartMjpegAsync(frame =>
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => CurrentFrame = frame);
+                }, token);
+            }, token);
         }
 
         private void OnStreamFrame(StreamFrame frame)
@@ -184,37 +268,41 @@ namespace Client.ViewModels
                 return;
 
             _isCapturing = false;
+            ActiveChannel = 0;
+            _mjpegCts?.Cancel();
+            _mjpegCts = null;
             _cameraService.StopCapture();
 
             await _streamService.StopAsync();
 
             _ = _journalService.RecordAsync(
                 eventCode: "stream_stopped",
-                message: "Остановлен анализ потока с камеры",
+                message: "Остановлен анализ потока",
                 source: "stream",
                 action: "stop",
                 level: "info");
 
-            StatusText = "Поток с камеры остановлен";
+            StatusText = "Поток остановлен";
+        }
+
+        private async Task SetDetectionModeAsync(string mode)
+        {
+            DetectionMode = mode;
+            await _streamService.SetDetectionModeAsync(mode);
         }
 
         private async Task GoToSettingsAsync()
         {
-            _cameraService.StopCapture();
-
             await _navigationService.NavigateToSettingsAsync();
         }
 
         private async Task GoToMainAsync()
         {
-            _cameraService.StopCapture();
-
             await _navigationService.NavigateToMainAsync();
         }
+
         private async Task GoToStatsAsync()
         {
-            _cameraService.StopCapture();
-
             await _navigationService.NavigateToStatisticsAsync();
         }
     }

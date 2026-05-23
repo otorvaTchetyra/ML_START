@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     token_expire_minutes: int = 480
 
     model_path: str = "models/weights.pt"
+    fish_model_path: str = "models/fish_weights.pt"
     model_confidence: float = 0.5
     model_iou: float = 0.4
 

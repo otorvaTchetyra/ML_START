@@ -87,6 +87,12 @@ public class ApiClient : IApiClient
         return response;
     }
 
+    public async Task<HttpResponseMessage> GetRawAsync(string endpoint)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, BuildUri(endpoint));
+        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+    }
+
     public async Task<T?> PatchAsync<T>(string endpoint, object data)
     {
         var response = await _httpClient.PatchAsJsonAsync(BuildUri(endpoint), data);
