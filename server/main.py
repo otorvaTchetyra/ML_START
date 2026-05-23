@@ -10,6 +10,7 @@ from slowapi.errors import RateLimitExceeded
 
 from api.auth import hash_password, router as auth_router
 from api.events import router as events_router
+from api.journal_api import router as journal_router
 from api.logs import router as logs_router
 from api.settings_api import router as settings_router
 from api.stream import router as stream_router
@@ -62,6 +63,7 @@ app.include_router(stream_router)
 app.include_router(events_router)
 app.include_router(stats_router)
 app.include_router(settings_router)
+app.include_router(journal_router)
 app.include_router(logs_router)
 
 

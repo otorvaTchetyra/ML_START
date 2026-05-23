@@ -1,5 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, Text, Boolean
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, Text, Boolean, BigInteger, ForeignKey
+from sqlalchemy.orm import DeclarativeBase, sessionmaker, relationship
 from datetime import datetime
 from config import settings
 
@@ -49,6 +49,44 @@ class AppSettings(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(64), unique=True, nullable=False)
     value = Column(Text, nullable=False)
+
+
+class JournalEventType(Base):
+    __tablename__ = "journal_event_types"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(64), unique=True, nullable=False)
+    name = Column(String(128), nullable=False)
+    category = Column(String(32), nullable=False)
+    default_severity = Column(String(16), nullable=False, default="info")
+    requires_comment = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+
+    entries = relationship("JournalEntry", back_populates="event_type")
+
+
+class JournalEntry(Base):
+    __tablename__ = "journal_entries"
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    level = Column(String(16), nullable=False, index=True)
+    event_type_id = Column(Integer, ForeignKey("journal_event_types.id"), nullable=True)
+    source = Column(String(32), nullable=False, index=True)
+    action = Column(String(64), nullable=False)
+    message = Column(Text, nullable=False)
+    details_json = Column(Text, nullable=True)
+    user_id = Column(Integer, nullable=True)
+    username_snapshot = Column(String(64), nullable=True)
+    screen = Column(String(64), nullable=True)
+    entity_type = Column(String(64), nullable=True)
+    entity_id = Column(BigInteger, nullable=True)
+    is_resolved = Column(Boolean, default=False, index=True)
+    resolved_at = Column(DateTime, nullable=True)
+    comment = Column(Text, nullable=True)
+
+    event_type = relationship("JournalEventType", back_populates="entries")
 
 
 def get_db():

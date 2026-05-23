@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Client.Services;
@@ -12,10 +13,32 @@ namespace Client.Services;
 public class JournalService
 {
     private readonly IDbContextFactory<JournalDbContext> _dbContextFactory;
+    private readonly IApiClient _apiClient;
 
-    public JournalService(IDbContextFactory<JournalDbContext> dbContextFactory)
+    public JournalService(IDbContextFactory<JournalDbContext> dbContextFactory, IApiClient apiClient)
     {
         _dbContextFactory = dbContextFactory;
+        _apiClient = apiClient;
+    }
+
+    private class ServerJournalEntry
+    {
+        [JsonPropertyName("id")] public long Id { get; set; }
+        [JsonPropertyName("timestamp")] public DateTime Timestamp { get; set; }
+        [JsonPropertyName("level")] public string Level { get; set; } = "";
+        [JsonPropertyName("source")] public string Source { get; set; } = "";
+        [JsonPropertyName("action")] public string Action { get; set; } = "";
+        [JsonPropertyName("message")] public string Message { get; set; } = "";
+        [JsonPropertyName("details_json")] public string? DetailsJson { get; set; }
+        [JsonPropertyName("user_id")] public int? UserId { get; set; }
+        [JsonPropertyName("username_snapshot")] public string? UsernameSnapshot { get; set; }
+        [JsonPropertyName("screen")] public string? Screen { get; set; }
+        [JsonPropertyName("entity_type")] public string? EntityType { get; set; }
+        [JsonPropertyName("entity_id")] public long? EntityId { get; set; }
+        [JsonPropertyName("is_resolved")] public bool IsResolved { get; set; }
+        [JsonPropertyName("resolved_at")] public DateTime? ResolvedAt { get; set; }
+        [JsonPropertyName("comment")] public string? Comment { get; set; }
+        [JsonPropertyName("event_code")] public string? EventCode { get; set; }
     }
 
     public async Task<List<JournalEntry>> GetEntriesAsync(
@@ -28,34 +51,68 @@ public class JournalService
         bool? resolved = null,
         string? usernameSnapshot = null)
     {
+        try
+        {
+            var url = $"/journal/entries?limit={limit}";
+            if (!string.IsNullOrWhiteSpace(level)) url += $"&level={level}";
+            if (!string.IsNullOrWhiteSpace(source)) url += $"&source={source}";
+
+            var serverEntries = await _apiClient.GetAsync<List<ServerJournalEntry>>(url);
+            if (serverEntries != null)
+            {
+                var result = serverEntries
+                    .Where(e =>
+                        (string.IsNullOrWhiteSpace(usernameSnapshot) || e.UsernameSnapshot == usernameSnapshot) &&
+                        (!dateFrom.HasValue || e.Timestamp >= dateFrom.Value) &&
+                        (!dateTo.HasValue || e.Timestamp <= dateTo.Value) &&
+                        (!resolved.HasValue || e.IsResolved == resolved.Value))
+                    .Select(e => new JournalEntry
+                    {
+                        Id = e.Id,
+                        Timestamp = e.Timestamp,
+                        Level = e.Level,
+                        Source = e.Source,
+                        Action = e.Action,
+                        Message = e.Message,
+                        DetailsJson = e.DetailsJson,
+                        UserId = e.UserId,
+                        UsernameSnapshot = e.UsernameSnapshot,
+                        Screen = e.Screen,
+                        EntityType = e.EntityType,
+                        EntityId = e.EntityId,
+                        IsResolved = e.IsResolved,
+                        ResolvedAt = e.ResolvedAt,
+                        Comment = e.Comment,
+                    })
+                    .ToList();
+                return result;
+            }
+        }
+        catch { }
+
+        // fallback — локальная БД
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         await JournalDatabaseInitializer.EnsureReadyAsync(dbContext);
 
         var query = dbContext.Entries
-                .Include(x => x.EventType)
-                .AsNoTracking()
-                .AsQueryable();
+            .Include(x => x.EventType)
+            .AsNoTracking()
+            .AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(level))
-                query = query.Where(x => x.Level == level);
-
-            if (!string.IsNullOrWhiteSpace(source))
-                query = query.Where(x => x.Source == source);
-
-            if (!string.IsNullOrWhiteSpace(category))
-                query = query.Where(x => x.EventType != null && x.EventType.Category == category);
-
-            if (dateFrom.HasValue)
-                query = query.Where(x => x.Timestamp >= dateFrom.Value);
-
-            if (dateTo.HasValue)
-                query = query.Where(x => x.Timestamp <= dateTo.Value);
-
-            if (resolved.HasValue)
-                query = query.Where(x => x.IsResolved == resolved.Value);
-
-            if (!string.IsNullOrWhiteSpace(usernameSnapshot))
-                query = query.Where(x => x.UsernameSnapshot == usernameSnapshot);
+        if (!string.IsNullOrWhiteSpace(level))
+            query = query.Where(x => x.Level == level);
+        if (!string.IsNullOrWhiteSpace(source))
+            query = query.Where(x => x.Source == source);
+        if (!string.IsNullOrWhiteSpace(category))
+            query = query.Where(x => x.EventType != null && x.EventType.Category == category);
+        if (dateFrom.HasValue)
+            query = query.Where(x => x.Timestamp >= dateFrom.Value);
+        if (dateTo.HasValue)
+            query = query.Where(x => x.Timestamp <= dateTo.Value);
+        if (resolved.HasValue)
+            query = query.Where(x => x.IsResolved == resolved.Value);
+        if (!string.IsNullOrWhiteSpace(usernameSnapshot))
+            query = query.Where(x => x.UsernameSnapshot == usernameSnapshot);
 
         return await query
             .OrderByDescending(x => x.Timestamp)
@@ -65,6 +122,19 @@ public class JournalService
 
     public async Task<List<string>> GetDistinctJournalUsernamesAsync()
     {
+        try
+        {
+            var entries = await _apiClient.GetAsync<List<ServerJournalEntry>>("/journal/entries?limit=1000");
+            if (entries != null)
+                return entries
+                    .Where(x => !string.IsNullOrWhiteSpace(x.UsernameSnapshot))
+                    .Select(x => x.UsernameSnapshot!)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList();
+        }
+        catch { }
+
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         await JournalDatabaseInitializer.EnsureReadyAsync(dbContext);
 
@@ -92,6 +162,9 @@ public class JournalService
         string? comment = null,
         bool isResolved = false)
     {
+        var now = DateTime.UtcNow;
+        JournalEntry entry;
+
         try
         {
             await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
@@ -101,9 +174,9 @@ public class JournalService
                 .FirstOrDefaultAsync(x => x.Code == eventCode)
                 ?? await dbContext.EventTypes.FirstAsync(x => x.Code == "custom");
 
-            var entry = new JournalEntry
+            entry = new JournalEntry
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = now,
                 Level = level,
                 EventTypeId = eventType.Id,
                 Source = source,
@@ -117,19 +190,18 @@ public class JournalService
                 EntityId = entityId,
                 Comment = comment,
                 IsResolved = isResolved,
-                ResolvedAt = isResolved ? DateTime.UtcNow : null
+                ResolvedAt = isResolved ? now : null
             };
 
             dbContext.Entries.Add(entry);
             await dbContext.SaveChangesAsync();
             entry.EventType = eventType;
-            return entry;
         }
         catch
         {
-            return new JournalEntry
+            entry = new JournalEntry
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = now,
                 Level = level,
                 Source = source,
                 Action = action,
@@ -142,9 +214,36 @@ public class JournalService
                 EntityId = entityId,
                 Comment = comment,
                 IsResolved = isResolved,
-                ResolvedAt = isResolved ? DateTime.UtcNow : null
+                ResolvedAt = isResolved ? now : null
             };
         }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _apiClient.PostAsync<object>("/journal/entries", new
+                {
+                    timestamp = entry.Timestamp,
+                    level = entry.Level,
+                    event_code = eventCode,
+                    source = entry.Source,
+                    action = entry.Action,
+                    message = entry.Message,
+                    details_json = entry.DetailsJson,
+                    user_id = entry.UserId,
+                    username_snapshot = entry.UsernameSnapshot,
+                    screen = entry.Screen,
+                    entity_type = entry.EntityType,
+                    entity_id = entry.EntityId,
+                    is_resolved = entry.IsResolved,
+                    comment = entry.Comment,
+                });
+            }
+            catch { }
+        });
+
+        return entry;
     }
 
     public Task<JournalEntry> RecordAsync(
