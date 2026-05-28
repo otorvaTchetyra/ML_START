@@ -84,7 +84,11 @@ def get_tracker() -> GranuleTracker:
     global _tracker
     if _tracker is None:
         from config import settings
-        _tracker = GranuleTracker(iou_threshold=settings.tracker_iou_threshold)
+        _tracker = GranuleTracker(
+            iou_threshold=settings.tracker_iou_threshold,
+            max_dist=settings.tracker_max_dist,
+            max_missed=settings.tracker_max_missed,
+        )
     return _tracker
 
 
@@ -270,6 +274,17 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
                 continue
 
             frame, detections, result, ts, threshold_exceeded, out_of_schedule, jpeg = outcome
+
+            if result.granule_count > 0:
+                logger.info(
+                    "frame=%d  новых гранул=%d  всего=%d  интенсивность=%.2f/с  %.1f/мин%s",
+                    frame_index,
+                    result.granule_count,
+                    counter.total_granules,
+                    result.intensity_per_sec,
+                    result.intensity_per_min,
+                    "  [ПОРОГ]" if threshold_exceeded else "",
+                )
 
             if threshold_exceeded or out_of_schedule:
                 now_mono = monotonic()

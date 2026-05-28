@@ -31,10 +31,36 @@ def test_non_overlapping_counted_as_new():
     assert len(result) == 1
 
 
-def test_partial_overlap_below_threshold_is_new():
-    tracker = GranuleTracker(iou_threshold=0.5)
+def test_far_granule_with_low_iou_is_new():
+    tracker = GranuleTracker(iou_threshold=0.5, max_dist=40.0)
+    tracker.update([_det(0, 0, 10, 10)])
+    result = tracker.update([_det(60, 0, 70, 10)])
+    assert len(result) == 1
+
+
+def test_slightly_moved_granule_not_recounted():
+    tracker = GranuleTracker(iou_threshold=0.5, max_dist=40.0)
     tracker.update([_det(0, 0, 10, 10)])
     result = tracker.update([_det(8, 0, 18, 10)])
+    assert len(result) == 0
+
+
+def test_track_survives_missed_frames():
+    tracker = GranuleTracker(iou_threshold=0.3, max_dist=40.0, max_missed=5)
+    tracker.update([_det(0, 0, 10, 10)])
+    tracker.update([])
+    tracker.update([])
+    result = tracker.update([_det(0, 0, 10, 10)])
+    assert len(result) == 0
+
+
+def test_expired_track_recounted():
+    tracker = GranuleTracker(iou_threshold=0.3, max_dist=40.0, max_missed=2)
+    tracker.update([_det(0, 0, 10, 10)])
+    tracker.update([])
+    tracker.update([])
+    tracker.update([])
+    result = tracker.update([_det(0, 0, 10, 10)])
     assert len(result) == 1
 
 

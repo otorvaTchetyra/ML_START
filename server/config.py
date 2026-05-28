@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     default_granule_threshold: int = 50
     frame_skip: int = 1
     tracker_iou_threshold: float = 0.3
+    tracker_max_dist: float = 40.0
+    tracker_max_missed: int = 5
 
     class Config:
         env_file = ".env"
