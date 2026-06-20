@@ -1,6 +1,6 @@
-# DroneVision — Система контроля кормления рыб
+# DroneVision — Fish Feeding Monitoring System
 
-> Система автоматического мониторинга кормления рыб на основе компьютерного зрения. Анализирует видеопоток с камеры в реальном времени, детектирует и подсчитывает гранулы корма, уведомляет оператора о нештатных ситуациях.
+> An automated computer vision system for real-time fish feeding monitoring. Analyzes live video streams, detects and counts feed granules frame by frame, and alerts operators about abnormal feeding events.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
@@ -10,144 +10,144 @@
 
 ---
 
-## Демо
+## Live Demo
 
 🌐 **API (Swagger UI):** [http://185.125.102.24:8000/docs](http://185.125.102.24:8000/docs)
 
 ---
 
-## Как это работает
+## How It Works
 
 ```
-Камера / видеофайл
+Camera / Video file
         │
         ▼
 ┌───────────────────┐
-│   GranuleDetector  │  YOLOv8 — детекция гранул на кадре
-│   (YOLOv8)        │  Фильтр по размеру бокса (< 12% кадра)
+│  GranuleDetector  │  YOLOv8 — detects granules per frame
+│  (YOLOv8)        │  Bounding box size filter (< 12% of frame)
 └────────┬──────────┘
          │
          ▼
 ┌───────────────────┐
-│   GranuleTracker   │  IoU-трекер: исключает повторный счёт
-│                   │  одной гранулы в нескольких кадрах
+│  GranuleTracker   │  IoU-based tracker — prevents counting
+│                   │  the same granule across multiple frames
 └────────┬──────────┘
-         │  только новые гранулы
+         │  new granules only
          ▼
 ┌───────────────────┐
-│   GranuleCounter   │  Скользящее окно 5 сек →
-│                   │  интенсивность (гранул/сек, гранул/мин)
+│  GranuleCounter   │  Sliding window (5 sec) →
+│                   │  intensity (granules/sec, granules/min)
 └────────┬──────────┘
          │
          ▼
-   FastAPI (NDJSON stream)
+  FastAPI (NDJSON stream)
          │
          ▼
-   Avalonia Desktop Client
-   - MJPEG видео с оверлеем
-   - Алерты при превышении порога
-   - Журнал событий
+  Avalonia Desktop Client
+  - MJPEG stream with detection overlay
+  - Threshold alerts with sound
+  - Feeding event journal
 ```
 
 ---
 
-## Стек технологий
+## Tech Stack
 
-### Сервер (Python)
-| Компонент | Технология |
+### Server (Python)
+| Component | Technology |
 |-----------|-----------|
-| REST API + стриминг | FastAPI, uvicorn |
-| Детекция объектов | YOLOv8 (ultralytics 8.3) |
-| Трекинг между кадрами | Собственный IoU-трекер |
-| БД | SQLAlchemy 2.0 + MySQL |
-| Аутентификация | JWT (python-jose) |
+| REST API & streaming | FastAPI, uvicorn |
+| Object detection | YOLOv8 (ultralytics 8.3) |
+| Inter-frame tracking | Custom IoU tracker |
+| Database | SQLAlchemy 2.0 + MySQL |
+| Authentication | JWT (python-jose) |
 | Rate limiting | slowapi |
-| Видео | OpenCV (headless) |
-| Стриминг URL | yt-dlp (YouTube, HLS) |
+| Video processing | OpenCV (headless) |
+| Stream URL resolving | yt-dlp (YouTube, HLS) |
 
-### Клиент (C#)
-| Компонент | Технология |
+### Client (C#)
+| Component | Technology |
 |-----------|-----------|
-| UI фреймворк | Avalonia UI 11.3 |
-| Паттерн | MVVM (ReactiveUI, CommunityToolkit) |
-| Видео | LibVLC (software rendering) |
-| Графики | LiveChartsCore |
-| Локальная БД | Entity Framework + SQLite |
+| UI framework | Avalonia UI 11.3 |
+| Pattern | MVVM (ReactiveUI, CommunityToolkit) |
+| Video playback | LibVLC (software rendering) |
+| Charts | LiveChartsCore |
+| Local database | Entity Framework + SQLite |
 
 ---
 
-## Ключевые возможности
+## Features
 
-- **Детекция гранул** через кастомно обученную YOLOv8 в реальном времени
-- **Трекинг** — каждая гранула считается ровно один раз, даже если видна в нескольких кадрах
-- **Интенсивность** по скользящему окну: гранул/сек и гранул/мин
-- **Расписание кормления** — система фиксирует кормление вне заданных промежутков
-- **Алерты** — визуальный баннер и звуковой сигнал при превышении порога
-- **MJPEG-стрим** с оверлеем детекций в реальном времени
-- **Поддержка источников:** MP4/AVI файл, веб-камера, YouTube, HLS-поток, sochi.camera
-- **Роли:** администратор (полный доступ) и оператор (просмотр и настройка)
-- **Журнал событий** с комментариями и статистикой за период
+- **Real-time granule detection** using a custom-trained YOLOv8 model
+- **IoU tracker** — each granule is counted exactly once, even if visible across multiple frames
+- **Feeding intensity** via sliding window: granules/sec and granules/min
+- **Feeding schedule** — detects feeding events outside defined time windows
+- **Alerts** — visual banner and audio signal when granule threshold is exceeded
+- **Live MJPEG stream** with detection overlay rendered server-side
+- **Multiple video sources:** MP4/AVI files, webcam, YouTube, HLS streams, sochi.camera
+- **Role-based access:** administrator (full access) and operator (view & configure)
+- **Event journal** with comments and period statistics
 
 ---
 
-## Архитектура проекта
+## Project Structure
 
 ```
 ML_START/
-├── server/                  — Python ML-сервер
-│   ├── main.py              — точка входа, FastAPI app
-│   ├── config.py            — настройки через .env
-│   ├── database.py          — модели БД
+├── server/                  — Python ML server
+│   ├── main.py              — entry point, FastAPI app
+│   ├── config.py            — settings via .env
+│   ├── database.py          — DB models
 │   ├── models/
-│   │   ├── detector.py      — обёртка YOLOv8
-│   │   ├── tracker.py       — IoU-трекер между кадрами
-│   │   └── counter.py       — скользящее окно интенсивности
+│   │   ├── detector.py      — YOLOv8 wrapper
+│   │   ├── tracker.py       — IoU tracker
+│   │   └── counter.py       — sliding window intensity counter
 │   ├── api/
-│   │   ├── auth.py          — JWT-авторизация, управление пользователями
-│   │   ├── stream.py        — NDJSON-стриминг, MJPEG, анализ видео
-│   │   ├── events.py        — журнал событий кормления
-│   │   ├── stats.py         — статистика за период
-│   │   └── settings_api.py  — настройки системы
-│   ├── schemas/schemas.py   — Pydantic-схемы
-│   └── tests/               — pytest (32 теста)
+│   │   ├── auth.py          — JWT auth, user management
+│   │   ├── stream.py        — NDJSON streaming, MJPEG, video analysis
+│   │   ├── events.py        — feeding event journal
+│   │   ├── stats.py         — period statistics
+│   │   └── settings_api.py  — system configuration
+│   ├── schemas/schemas.py   — Pydantic schemas
+│   └── tests/               — pytest (32 tests)
 │
-└── Client/                  — C# Avalonia десктоп
+└── Client/                  — C# Avalonia desktop app
     └── Client/
-        ├── ViewModels/      — MVVM логика
-        ├── Views/           — AXAML интерфейс
-        ├── Services/        — API-клиент, стриминг, авторизация
-        └── Models/          — модели данных
+        ├── ViewModels/      — MVVM logic
+        ├── Views/           — AXAML UI
+        ├── Services/        — API client, streaming, auth
+        └── Models/          — data models
 ```
 
 ---
 
-## Быстрый старт
+## Getting Started
 
-### Сервер
+### Server
 
 ```bash
 cd server
 pip install -r requirements.txt
 ```
 
-Создать `.env`:
+Create `.env`:
 ```env
 DB_URL=mysql+pymysql://user:password@localhost:3306/dronevision
 SECRET_KEY=your-secret-key
 ```
 
-Положить веса модели в `server/models/weights.pt`, затем:
+Place model weights at `server/models/weights.pt`, then:
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-После запуска создаётся администратор по умолчанию: `admin / admin`.  
-Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
+A default admin account is created automatically: `admin / admin`.  
+Swagger UI available at: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### Клиент
+### Client
 
-Требуется .NET 10 SDK и libvlc:
+Requires .NET 10 SDK and libvlc:
 ```bash
 sudo apt install dotnet-sdk-10.0 libvlc-dev  # Ubuntu
 ```
@@ -157,45 +157,45 @@ cd Client
 dotnet run --project Client/Client.csproj
 ```
 
-Адрес сервера настраивается в `Client/appsettings.json`.
+Server address is configured in `Client/appsettings.json`.
 
 ---
 
-## API
+## API Reference
 
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| POST | `/auth/login` | JWT-токен |
-| GET | `/auth/users` | Список пользователей (admin) |
-| POST | `/auth/users` | Создать пользователя (admin) |
-| PUT | `/auth/users/{id}` | Редактировать пользователя (admin) |
-| POST | `/stream/start` | Запустить анализ потока по URL |
-| POST | `/stream/upload` | Загрузить MP4/AVI и запустить анализ |
-| GET | `/stream/mjpeg` | MJPEG-поток с оверлеем детекций |
-| POST | `/stream/stop` | Остановить анализ |
-| GET | `/events` | Журнал событий кормления |
-| GET | `/stats` | Статистика за период |
-| GET/PATCH | `/settings` | Настройки системы |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/login` | Get JWT token |
+| GET | `/auth/users` | List users (admin) |
+| POST | `/auth/users` | Create user (admin) |
+| PUT | `/auth/users/{id}` | Update user (admin) |
+| POST | `/stream/start` | Start analysis from URL |
+| POST | `/stream/upload` | Upload MP4/AVI and start analysis |
+| GET | `/stream/mjpeg` | MJPEG stream with detection overlay |
+| POST | `/stream/stop` | Stop analysis |
+| GET | `/events` | Feeding event journal |
+| GET | `/stats` | Statistics for a time period |
+| GET/PATCH | `/settings` | System settings |
 
 ---
 
-## Тесты
+## Tests
 
 ```bash
 cd server
 pytest tests/ -v
 ```
 
-32 теста: алгоритм подсчёта, трекер, API.
+32 tests covering the counter algorithm, tracker, and API endpoints.
 
 ---
 
-## Команда
+## Team
 
-| Участник | Роль |
-|----------|------|
-| Сусоров Егор | ML — датасет, обучение YOLOv8 |
-| Tchetyrkin Daniil | ML — алгоритм подсчёта, трекинг, интеграция модели |
-| Ковпак Олеся | ML — REST API сервер |
-| Нуриев Роял | Client — БД, бизнес-логика |
-| Казнин Александр | Client — UI, Avalonia |
+| Member | Role |
+|--------|------|
+| Susorov Egor | ML — dataset collection, YOLOv8 training |
+| Tchetyrkin Daniil | ML — counting algorithm, tracking, model integration |
+| Kovpak Olesya | ML — REST API server |
+| Nuriev Royal | Client — database, business logic |
+| Kaznin Alexander | Client — UI, Avalonia |
