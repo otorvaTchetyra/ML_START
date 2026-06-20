@@ -59,35 +59,6 @@
                                Stretch="Uniform"
                                HorizontalAlignment="Stretch"
                                VerticalAlignment="Stretch"/>
-                        <ItemsControl ItemsSource="{Binding CurrentFrameInfo.bboxes}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <Canvas Background="Transparent" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Canvas>
-                                        <Rectangle Stroke="Red"
-                                                   StrokeThickness="2"
-                                                   Fill="Transparent"
-                                                   Width="{Binding Width}"
-                                                   Height="{Binding Height}"
-                                                   Canvas.Left="{Binding x1}"
-                                                   Canvas.Top="{Binding y1}" />
-                                        <Border Canvas.Left="{Binding x1}"
-                                                Canvas.Top="{Binding y1}"
-                                                Background="#CC000000"
-                                                Padding="3,1"
-                                                IsVisible="{Binding HasLabel}">
-                                            <TextBlock Text="{Binding label}"
-                                                       Foreground="White"
-                                                       FontSize="11"/>
-                                        </Border>
-                                    </Canvas>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
                     </Grid>
 
                     <StackPanel Grid.Row="1"

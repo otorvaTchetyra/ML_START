@@ -26,6 +26,7 @@ namespace Client.ViewModels
         private readonly CameraCaptureService _cameraService;
         private bool _isCapturing;
         private CancellationTokenSource? _mjpegCts;
+        private int _streamVersion;
 
         private Bitmap? _currentFrame;
         public Bitmap? CurrentFrame
@@ -171,6 +172,8 @@ namespace Client.ViewModels
             _mjpegCts?.Cancel();
             _mjpegCts = null;
 
+            var myVersion = ++_streamVersion;
+
             _isCapturing = true;
             ActiveChannel = channel;
 
@@ -210,7 +213,8 @@ namespace Client.ViewModels
                 await Task.Delay(500, token);
                 await _cameraService.StartMjpegAsync(frame =>
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => CurrentFrame = frame);
+                    if (_streamVersion == myVersion)
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() => CurrentFrame = frame);
                 }, token);
             }, token);
         }

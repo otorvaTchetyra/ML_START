@@ -35,6 +35,7 @@ _EVENT_SAVE_INTERVAL: float = 30.0
 _granule_threshold: int = 50
 _feeding_schedule: list[dict] = []
 _frame_skip: int = 1
+_stream_session: int = 0
 
 
 def _get_frame_cond() -> asyncio.Condition:
@@ -220,7 +221,8 @@ def _read_and_process_frame(cap: cv2.VideoCapture, detector, tracker, counter,
 
 
 async def _process_video_stream(source: str, app_settings: dict, cleanup_path: str | None = None):
-    global _is_running, _latest_jpeg, _granule_threshold, _feeding_schedule, _frame_skip
+    global _is_running, _latest_jpeg, _granule_threshold, _feeding_schedule, _frame_skip, _stream_session
+    my_session = _stream_session
 
     _granule_threshold = app_settings.get("granule_threshold", 50)
     _feeding_schedule = app_settings.get("feeding_schedule", [])
@@ -251,7 +253,7 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
     frame_index = 0
 
     try:
-        while _is_running:
+        while _is_running and _stream_session == my_session:
             try:
                 effective_skip = max(_frame_skip, 8) if detector._mode == "fish" else _frame_skip
                 outcome = await loop.run_in_executor(
@@ -308,7 +310,7 @@ async def _process_video_stream(source: str, app_settings: dict, cleanup_path: s
                 out_of_schedule=out_of_schedule,
                 bboxes=[
                     BBox(x1=d.x1, y1=d.y1, x2=d.x2, y2=d.y2, confidence=d.confidence, label=d.label)
-                    for d in detections
+                    for d in tracker.tracked_detections
                 ],
                 source_width=src_width,
                 source_height=src_height,
@@ -338,7 +340,7 @@ async def upload_and_analyse(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    global _is_running
+    global _is_running, _stream_session
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in (".mp4", ".avi"):
         raise HTTPException(status_code=400, detail="Поддерживаются только форматы MP4 и AVI")
@@ -351,6 +353,7 @@ async def upload_and_analyse(
         tmp_path = tmp.name
 
     app_settings = get_current_settings(db)
+    _stream_session += 1
     _is_running = True
 
     return StreamingResponse(
@@ -365,11 +368,12 @@ async def start_from_source(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    global _is_running
+    global _is_running, _stream_session
     if _is_running:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Анализ уже выполняется")
 
     app_settings = get_current_settings(db)
+    _stream_session += 1
     _is_running = True
 
     return StreamingResponse(

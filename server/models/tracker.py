@@ -49,6 +49,10 @@ class GranuleTracker:
         self._tracks.clear()
 
     @property
+    def tracked_detections(self) -> list[Detection]:
+        return [t.det for t in self._tracks if t.missed == 0]
+
+    @property
     def iou_threshold(self) -> float:
         return self._iou_threshold
 
